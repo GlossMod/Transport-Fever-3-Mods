@@ -1,0 +1,4 @@
+interface:
+  display_name: "狂热运输 3 Mod 开发"
+  short_description: "基于 TF3 官方文档与本机资源开发、迁移和排查 Mod"
+  default_prompt: "使用 $develop-tf3-mods 在当前项目开发狂热运输 3 Mod，先核对本机 API 和官方示例，并保持一个 Mod 一个文件夹。"

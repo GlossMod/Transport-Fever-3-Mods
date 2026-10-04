@@ -1,0 +1,16 @@
+{
+    "dependencies": null,
+    "incompatibilities": null,
+    "modId": "example_mod_1",
+    "params": null,
+    "postRunScript": {
+        "fileName": ""
+    },
+    "preRunScript": {
+        "fileName": ""
+    },
+    "revision": 1,
+    "runScript": {
+        "fileName": ""
+    }
+}

@@ -1,3 +1,4 @@
 shader_cache
 .agents\tools\*
 .agents\tests\*
+output

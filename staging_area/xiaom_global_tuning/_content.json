@@ -1,0 +1,18 @@
+{
+  "archives": null,
+  "files": [
+    "config_store.lua",
+    "load_settings.res.lua",
+    "local_settings.res.lua",
+    "mod.script.lua",
+    "settings.lua",
+    "time_control.gs.lua",
+    "time_control.script.lua",
+    "tuning_controller.lua",
+    "tuning_core.lua",
+    "tuning_ui.css.lua",
+    "tuning_ui.lua",
+    "tuning_ui.res.lua",
+    "tuning_ui.script.lua"
+  ]
+}

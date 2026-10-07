@@ -41,6 +41,7 @@
 | [API Reference 导读](https://wiki.transportfever3.com/doku.php?id=modding:scripting:api) | 已读；明确说明参考尚不完整，推荐用控制台和 `debugPrint` 探查。 |
 | [Scripting Reference](https://wiki.transportfever3.com/script-doc/) | 已打开索引；页面显示生成日期 2026-08-19。`api.res`、`api.engine`、`api.cmd`、`api.gui` 等具体成员需进入对应页或查本机 `.d.tl`，不能仅凭模块名假定可用。 |
 | [Publish a Mod](https://wiki.transportfever3.com/doku.php?id=modding:general:publishing) | 已读；当前返回页面显示 **old revision**。可参考 staging_area、Mod Hub 和更新绑定流程，发布当天重核。 |
+| [Creating and Updating Mods via the In-Game Mod Manager](https://mod.io/g/transportfever3/r/creating-and-updating-mods-via-the-in-game-mod-manager) | mod.io 社区指南，作者 GlcrT，页面更新于 2026-10-02；2026-10-04 已读并复核。补充实际 staging 路径、`_content.json` 和数字 Mod ID 绑定；实际校验、上传结果仍以游戏为准。操作整理见 [mod.io 发布与更新](modio-publishing.md)。 |
 | [Guidelines & Requirements](https://wiki.transportfever3.com/doku.php?id=modding:general:guidelines) | 已读主要要求；页面显示 **old revision**。尺寸、容量和主机限制须以当前规则及官方验证器为准。 |
 | [Ingame Tools](https://wiki.transportfever3.com/doku.php?id=modding:tools:ingame) | 页面明确标注 **not yet adapted for Transport Fever 3**。不把其中快捷键、热重载列表或日志路径视为已验证 TF3 行为。 |
 | [Base Config](https://wiki.transportfever3.com/doku.php?id=modding:scripting:baseconfig) | 页面明确标注 **not yet adapted for Transport Fever 3**；旧 `res/config`、`game.config` 示例不能代替本机 TF3 `base/mod.script.tl`。 |

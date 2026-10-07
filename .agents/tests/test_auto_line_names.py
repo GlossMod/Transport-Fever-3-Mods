@@ -26,7 +26,8 @@ end
 world = {
     components = {}, names = {}, lines = {}, vehicles = {}, towns = {},
     stationKinds = {}, sent = {}, queued = {}, delayed = false, fail = false,
-    passenger = 0,
+    passenger = 0, now = 0, locale = "zh_CN", legacyTicks = true, params = {format=2,language=2},
+    modes = {}, catchables = {}, reads=0, writes=0, nativeCalls=0,
     cargo = {
         [0] = { name = "旅客", order = 0 },
         [1] = { name = "煤炭", order = 2 },
@@ -37,12 +38,38 @@ world = {
 }
 logs = {}
 function debugPrint(message) logs[#logs + 1] = message end
+loaded = {}
+function ug_require(path)
+    if path == "xiaom_auto_line_names::/user_config.lua" and world.userConfig then return world.userConfig end
+    if loaded[path] then return loaded[path] end
+    local relative = path:match("::/(.*)")
+    local value = assert(loadfile(content_root .. "/" .. relative))()
+    loaded[path] = value
+    return value
+end
+function _(key)
+    if key == "aln_language" then return world.locale end
+    if world.locale == "zh_CN" then
+        if key == "Line {lineNumber}" then return "线路 {lineNumber}" end
+        if key == "New Line" then return "新线路" end
+    end
+    return key
+end
+function restart_runtime()
+    loaded["xiaom_auto_line_names::/naming_runtime.lua"]=nil
+    loaded["xiaom_auto_line_names::/naming_collect.lua"]=nil
+    script=ug_require "xiaom_auto_line_names::/naming_runtime.lua"
+end
+function event(name,param) script.handleEvent({},state,"xiaom_auto_line_names::/auto_line_names.gs","xiaom_auto_line_names",name,param or {}) end
 api = {
-    type = { ComponentType = {
+    util = { getApplicationTime=function() return world.now end },
+    type = { ["enum"]={TransportMode={BUS="BUS",TRUCK="TRUCK",TRAM="TRAM",ELECTRIC_TRAM="ELECTRIC_TRAM",TRAIN="TRAIN",ELECTRIC_TRAIN="ELECTRIC_TRAIN",SHIP="SHIP",SMALL_SHIP="SMALL_SHIP",AIRCRAFT="AIRCRAFT",SMALL_AIRCRAFT="SMALL_AIRCRAFT",HELICOPTER="HELICOPTER"}}, ComponentType = {
         LINE = "line", STATION_GROUP = "group", TRANSPORT_VEHICLE = "vehicle",
-        PLAYER_OWNED = "owner",
+        PLAYER_OWNED = "owner", CONSTRUCTION="construction", INDUSTRY="industry",
     } },
     engine = {
+        config = {getModParams=function() return {xiaom_auto_line_names=world.params} end},
+        getEntitiesWithComponent=function(kind) local ids={}; for id,c in pairs(world.components) do if c[kind] then ids[#ids+1]=id end end; return ids end,
         entityExists = function(entity) return world.names[entity] ~= nil end,
         getComponent = function(entity, kind)
             return world.components[entity] and world.components[entity][kind]
@@ -50,12 +77,15 @@ api = {
         util = {
             getPlayer = function() return 99 end,
             getEntityName = function(entity) return world.names[entity] end,
+            line = {getLineTransportModesUnion=function(id) return world.modes[id] or {TRAIN=true} end},
             station = { isStationOfType = function(entity, cargo)
                 local kind = world.stationKinds[entity]
                 return kind == "mixed" or kind == (cargo and "cargo" or "passenger")
             end },
         },
         system = {
+            constructionSystem={getConstructionEntityForStation=function(id) return id end},
+            catchmentAreaSystem={getStationCatchables=function(id) return world.catchables[id] or {} end},
             lineSystem = { getLinesForPlayer = function(player)
                 local result = {}
                 for _, entity in ipairs(world.lines) do
@@ -79,8 +109,13 @@ api = {
         getPassengerCargoTypeId = function() return world.passenger end,
     } },
     cmd = {
+        makeScriptingSendEventCmd=function(src,id,name,param) return {src=src,id=id,event=name,param=param} end,
         makeEntitySetNameCmd = function(entity, name) return { entity = entity, name = name } end,
         sendCommand = function(command)
+            if command.event then
+                if world.legacyTicks and command.event == "tick" then command.param.review=true end
+                script.handleEvent({},state,command.src,command.id,command.event,command.param); return
+            end
             if world.fail then return end -- Engine refuses a command without applying it.
             world.sent[#world.sent + 1] = command
             if world.delayed then
@@ -92,9 +127,13 @@ api = {
     },
 }
 state = { value = {} }
-function state:get() return deepcopy(self.value) end
-function state:set(value) self.value = deepcopy(value) end
-function reload() state.value = deepcopy(state.value) end
+function state:get() world.reads=world.reads+1; return deepcopy(self.value) end
+function state:set(value) world.writes=world.writes+1; self.value = deepcopy(value) end
+-- These methods exist in Build 40408, but invoking them from this Lua
+-- GameScript state wrapper raises a fatal native assertion.
+function state:get_native() world.nativeCalls=world.nativeCalls+1; error("get_native is unsupported") end
+function state:set_native(_) world.nativeCalls=world.nativeCalls+1; error("set_native is unsupported") end
+function reload() state.value = deepcopy(state.value); restart_runtime() end
 function flush()
     for _, command in ipairs(world.queued) do world.names[command.entity] = command.name end
     world.queued = {}
@@ -131,6 +170,8 @@ function vehicle(id, lineId, caps)
 end
 function run(count, dt)
     for i = 1, count or 15 do
+        world.now=world.now+0.14
+        script.guiUpdate({},state,{})
         local operations = script.update({}, state, dt or 0.016)
         script.postUpdate({}, state, dt or 0.016, operations)
     end
@@ -147,6 +188,7 @@ station(60, nil, nil, "钢厂", "cargo")
 class NamingTest(unittest.TestCase):
     def setUp(self):
         self.lua = LuaRuntime(unpack_returned_tuples=True)
+        self.lua.globals().content_root = (MOD / "content").as_posix()
         self.lua.execute(MOCK)
         self.lua.execute(SCRIPT.read_text(encoding="utf-8"))
         self.lua.execute("script = data()")
@@ -163,7 +205,7 @@ class NamingTest(unittest.TestCase):
         self.assertEqual(self.name(), "[客运] 北京-天津")
 
     def test_existing_line_preserved(self):
-        self.execute('state.value = {}; line(1,{stop(10,{0}),stop(20,{0})},"旧线路"); run(46)')
+        self.execute('state.value = {}; restart_runtime(); line(1,{stop(10,{0}),stop(20,{0})},"旧线路"); run(46)')
         self.assertEqual(self.name(), "旧线路")
 
     def test_empty_and_single_stop_wait(self):

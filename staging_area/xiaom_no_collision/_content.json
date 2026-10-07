@@ -1,0 +1,9 @@
+{
+  "archives": null,
+  "files": [
+    "anarchy_build.lua",
+    "anarchy_ui.res.lua",
+    "anarchy_util.lua",
+    "mod.script.lua"
+  ]
+}

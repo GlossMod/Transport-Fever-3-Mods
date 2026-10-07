@@ -1,0 +1,13 @@
+{
+  "archives": null,
+  "files": [
+    "upgrade.css.lua",
+    "upgrade.res.lua",
+    "upgrade.script.lua",
+    "upgrade_controller.lua",
+    "upgrade_core.lua",
+    "upgrade_entry.lua",
+    "upgrade_native.lua",
+    "upgrade_ui.lua"
+  ]
+}

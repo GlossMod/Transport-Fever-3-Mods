@@ -1,0 +1,15 @@
+{
+  "modId": "xiaom_global_tuning",
+  "revision": 7,
+  "severityAdd": "Warning",
+  "severityRemove": "Warning",
+  "visible": true,
+  "cosmetic": false,
+  "params": [],
+  "preRunScript": {
+    "fileName": "xiaom_global_tuning::/mod.script@preRunFn"
+  },
+  "postRunScript": {
+    "fileName": "xiaom_global_tuning::/mod.script@postRunFn"
+  }
+}

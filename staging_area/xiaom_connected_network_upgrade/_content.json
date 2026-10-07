@@ -1,0 +1,12 @@
+{
+  "archives": null,
+  "files": [
+    "network_core.lua",
+    "network_controller.lua",
+    "network_ui.lua",
+    "network_entry.lua",
+    "network.script.lua",
+    "network.res.lua",
+    "network.css.lua"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "相连路网批量升级 | Connected Network Upgrade",
+  "summary": "Preview and upgrade all connected roads or tracks using the selected upgrade tool.",
+  "description": "Adds a Whole connected network switch to road and track upgrade tools. Select a segment, review counts and estimated costs, then confirm. Supports road and track types, electrification, bus lanes, tram tracks, road development locking and edge decorations. Traverses branches, bridges and tunnels; skips locked construction segments and rejected upgrades. Uses normal construction costs. Cancel stops remaining work. Existing upgrades remain when this mod is removed. Restart the game after installation. Revision 2 has not been verified in game. Cover art is an AI-generated concept illustration, not a gameplay screenshot.",
+  "localization": {
+    "en": {
+      "name": "Connected Network Upgrade | 相连路网批量升级",
+      "summary": "Preview and upgrade all connected roads or tracks using the selected upgrade tool.",
+      "description": "Adds a Whole connected network switch to road and track upgrade tools. Select a segment, review counts and estimated costs, then confirm. Supports road and track types, electrification, bus lanes, tram tracks, road development locking and edge decorations. Traverses branches, bridges and tunnels; skips locked construction segments and rejected upgrades. Uses normal construction costs. Cancel stops remaining work. Existing upgrades remain when this mod is removed. Restart the game after installation. Revision 2 has not been verified in game. Cover art is an AI-generated concept illustration, not a gameplay screenshot."
+    },
+    "zh_CN": {
+      "name": "相连路网批量升级",
+      "summary": "按当前选择，预览并升级整个相连公路或铁路网络。",
+      "description": "在道路和铁路升级工具中增加“整个相连路网”开关。点击一段路，查看数量与预计费用，再确认执行。支持公路与轨道类型、电气化、公交专用道、有轨电车轨道、道路发展锁定及路段边缘设施。遍历岔路、桥梁和隧道；跳过建筑锁定和引擎拒绝的路段，正常计费。取消停止剩余任务，卸载保留已完成升级。安装后完全退出并重启游戏。revision 2 未游戏内验证。 封面为 AI 生成的功能示意插画，非游戏实机截图。"
+    }
+  },
+  "authors": [
+    {
+      "name": "xiaom",
+      "role": "CREATOR"
+    }
+  ],
+  "url": ""
+}

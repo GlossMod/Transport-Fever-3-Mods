@@ -1,0 +1,24 @@
+{
+  "name": "Anarchy",
+  "summary": "Force build overlapping buildings and roads, including non-critical collision and curvature limits.",
+  "description": "Use the Anarchy Force build current preview button in the standard road, building and module tools. Sends an actual native world command with normal costs and ownership. Handles non-critical Collision and Too Much Curvature errors; other errors and critical checks remain. Preserves native model colliders and road templates. Restart the game after updating. Runtime placement and save/reload verification are pending. Cover is an AI-generated concept illustration.",
+  "localization": {
+    "en": {
+      "name": "Anarchy",
+      "summary": "Force build overlapping buildings and roads, including non-critical collision and curvature limits.",
+      "description": "Use the Anarchy Force build current preview button in the standard road, building and module tools. Sends an actual native world command with normal costs and ownership. Handles non-critical Collision and Too Much Curvature errors; other errors and critical checks remain. Preserves native model colliders and road templates. Restart the game after updating. Runtime placement and save/reload verification are pending. Cover is an AI-generated concept illustration."
+    },
+    "zh_CN": {
+      "name": "无碰撞",
+      "summary": "通过强制建造按钮解除建筑和道路的非致命碰撞、曲率限制。",
+      "description": "在标准道路、建筑和模块工具中，点击 Anarchy 的“强制建造当前预览”按钮提交实际建造，正常收取费用并设置归属。处理非致命的“碰撞”和“曲率过大”；其他错误和致命检查保留。保留原生模型碰撞体和道路模板。更新后重启游戏。实际放置及存读档实测待完成。英文名为 Anarchy，中文名为无碰撞。封面为 AI 生成的功能示意插画。"
+    }
+  },
+  "authors": [
+    {
+      "name": "xiaom",
+      "role": "CREATOR"
+    }
+  ],
+  "url": ""
+}

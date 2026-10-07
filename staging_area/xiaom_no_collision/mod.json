@@ -1,0 +1,8 @@
+{
+  "modId": "xiaom_no_collision",
+  "revision": 3,
+  "severityAdd": "Warning",
+  "severityRemove": "Warning",
+  "visible": true,
+  "cosmetic": false
+}

@@ -1,8 +1,78 @@
 {
   "modId": "xiaom_auto_line_names",
-  "revision": 2,
+  "revision": 4,
   "severityAdd": "None",
   "severityRemove": "None",
   "visible": true,
-  "cosmetic": true
+  "cosmetic": true,
+  "params": [
+    {
+      "key": "format",
+      "name": "Naming format",
+      "uiType": "ComboBox",
+      "values": [
+        "Full information",
+        "Original format",
+        "Compact",
+        "Custom template"
+      ],
+      "defaultIndex": 0
+    },
+    {
+      "key": "language",
+      "name": "Label language",
+      "uiType": "ComboBox",
+      "values": [
+        "Game language",
+        "Chinese",
+        "English"
+      ],
+      "defaultIndex": 0
+    },
+    {
+      "key": "place",
+      "name": "Place names",
+      "uiType": "ComboBox",
+      "values": [
+        "Town name",
+        "Short town name",
+        "Station name",
+        "Industry name"
+      ],
+      "defaultIndex": 0
+    },
+    {
+      "key": "cargoStyle",
+      "name": "Cargo names",
+      "uiType": "ComboBox",
+      "values": [
+        "Full cargo name",
+        "Short cargo name",
+        "Cargo code"
+      ],
+      "defaultIndex": 0
+    },
+    {
+      "key": "region",
+      "name": "Regional classification",
+      "uiType": "ComboBox",
+      "values": [
+        "Hidden",
+        "LO / IC / RE"
+      ],
+      "defaultIndex": 0
+    },
+    {
+      "key": "refresh",
+      "name": "Automatic refresh",
+      "uiType": "ComboBox",
+      "values": [
+        "Every 60 seconds",
+        "New lines only",
+        "Every 30 seconds",
+        "Every 120 seconds"
+      ],
+      "defaultIndex": 0
+    }
+  ]
 }

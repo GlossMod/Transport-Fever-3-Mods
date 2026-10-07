@@ -1,4 +1,6 @@
 shader_cache
 .agents\tools\*
 .agents\tests\*
+.agents\diagnostics\*
 output
+__pycache__

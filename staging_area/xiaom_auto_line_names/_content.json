@@ -2,6 +2,18 @@
   "archives": null,
   "files": [
     "auto_line_names.gs.lua",
-    "auto_line_names.script.lua"
+    "auto_line_names.script.lua",
+    "naming_collect.lua",
+    "naming_config.lua",
+    "naming_controller.lua",
+    "naming_format.lua",
+    "naming_i18n.lua",
+    "naming_numbers.lua",
+    "naming_runtime.lua",
+    "naming_ui.lua",
+    "naming_ui.res.lua",
+    "naming_ui.script.lua",
+    "naming_util.lua",
+    "user_config.lua"
   ]
 }

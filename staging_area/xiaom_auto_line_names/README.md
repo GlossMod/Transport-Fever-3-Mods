@@ -1,39 +1,51 @@
-# 新线路自动命名
+# 自动线路命名 / Auto Line Names — revision 4
 
-自动为启用后新建的线路命名：
+默认 `[铁路客运] 北京-天津-001`、`[铁路货运] 煤炭-矿山-钢厂-001`。标签随游戏语言切换；可强制中文或英文。其他语言回退英文。
 
-- `[客运] 地点A-地点B`
-- `[货运] 物品-地点A-地点B`
+## 使用
 
-例如：`[客运] 北京-天津`、`[货运] 煤炭-唐山-天津`。
+启用后创建至少有两个不同停靠点的线路。新线路只有仍使用游戏默认名称时才自动接管；首次启用时旧线路保留。类型无法判断时继续等待，派车后优先按实际车辆判断。
 
-## 启用
+载入选项：命名格式（完整／原始／紧凑／自定义）、标签语言、地点类型（城市／简称／站点／产业）、货物样式、区域分类及自动复核间隔（默认 60 秒、30／120 秒或仅新线路）。新线路发现及手动改名检查约每两秒，暂停时 GUI 时钟仍触发检查；无 GUI 时使用模拟时间作为后备。
 
-本 Mod 已放在 `F:\mod\Transport Fever 3\staging_area\xiaom_auto_line_names`。游戏使用此目录作为用户数据目录时，在新游戏或存档的 Mod 列表启用“新线路自动命名”，再进入地图。
+产业只选站点货运服务范围内的产业，优先最近者，相同距离按实体 ID，找不到时回退站点。城市模式同城和无城市归属时使用站点。环线跳过末尾重复首站。货物按资源顺序显示前三项，再加 `+N`。
 
-如果列表中没有它，先通过游戏设置打开实际用户数据目录，将整个 `xiaom_auto_line_names` 文件夹放入该目录的 `staging_area`，再刷新 Mod 列表。不要仅复制 `content`，不要放入原版 `base`。
+## 手动保护和批量操作
 
-## 命名规则
+手动改名后退出自动管理；`Cst ` 前缀也受保护。将名称改成 `r` 或 `reload` 可恢复，编号保留（交通类别／客货类型变化时转入对应类别）。分类编号从 001 起，不回收，不因站点或货物变化而重排。
 
-- 至少添加两个不同的停靠站后生成名称。追加站点或调整装载配置后会继续更新。
-- 地点 A 为首站所属城镇，地点 B 为末站所属城镇。没有城镇归属时使用站名；同一城镇内的线路用首末站名区分。
-- 环线末站与首站相同的情况下，地点 B 使用最后一个不同于首站的停靠站。途经点不参与地点命名。
-- 物品读取线路允许装载的货物，已派车时按车辆当前有效容量筛选。使用游戏提供的货物显示名，因此与游戏语言和货物 Mod 一致；“客运”“货运”前缀固定为中文。
-- 多种货物以顿号连接，例如 `[货运] 煤炭、铁矿石-地点A-地点B`。空装载配置的纯货运线路先显示“待定”，确定装载货物后自动更新。
-- 混合客货线路使用货运格式列出货物；空配置且客货类型无法判断时暂缓命名。
-- 首次启用时已有线路保留原名，只接管后续新建的当前玩家线路。新线路在首次扫描时的名称作为初始名称，建议先等自动名称出现，再手动改名。
-- 手动修改已接管线路的名称后，该线路停止自动命名；保存后重新加载仍保留这一选择。
-- 名称相同的平行线路不追加编号，以保持请求的格式。
-- 每 15 次游戏脚本更新检查一次；若暂停使脚本停止更新，恢复运行后即可更新名称。
+线路管理器顶部点击“批量自动命名”：选择所选线路或当前玩家全部线路，检查旧名、新名和跳过原因。默认跳过受保护名称，可勾选包含。预览和取消不分配编号；确认前复核，变化时需刷新后再次确认。确认后持续自动管理；之后再手动改名仍可退出。
 
-## 移除
+## 高级配置
 
-只发送实体改名命令，不改价格、运输规则或原版文件。停用或移除后已生成的名称保留，新线路不再自动命名。
+编辑 [content/user_config.lua](content/user_config.lua)，重启游戏、载入存档，再在线路管理器点击“重新载入配置”。第一次启用导入该文件，之后使用存档中的配置；更新 Mod 不会自动覆盖。每个存档单独导入。格式／语言等载入选项不保存在高级配置中，以当前载入选项为准。
 
-## 版本和验证
+支持 `{transportType}`、`{serviceType}`、`{cargoTypes}`、`{placeA}`、`{placeB}`、`{lineType}`、`{lineNumber}`。英文 `{transportType}` 含末尾分隔空格，便于与 `{serviceType}` 连用。`lineType` 为 LO／IC／RE，取沿途不同城市数 1／2／3+；未知为空。自定义模板自行控制是否显示它。
 
-针对本机 TF3 Steam Build `25533170` 编写。使用 TF3 的 `mod.json`、`.gs.lua` 与 `.script.lua` 资源；没有使用 TF2 的脚本入口。
+可配置编号宽度（1–8）、简称字符数（1–32，按 Unicode 字符截断）、货物显示数量（1–16）、中文英文标签和货物覆盖。货物键支持资源全名或 basename，如 `coal`；覆盖值支持 `full`、`short`、`code`。没有内置缩写的货物保留全名，标准货物代码和常见中英文简称由模块提供。错误配置拒绝导入，保留上次有效值；首次错误使用默认值并显示原因。
 
-API 依据是安装目录中的 `api/tealdef`、`base/tealdef/scripts/gamescript.d.tl`，以及 `game_mechanics.zip` 内 `arrivaltracker`、`industries` 和 `gui.zip` 内 `line_util`、原版命名组件。资源结构也核对了[官方资源类型说明](https://wiki.transportfever3.com/doku.php?id=modding:general:resourcetypes)。
+自定义例子：
 
-验证结果见同目录 `VALIDATION.md`。模拟 API 测试验证脚本逻辑，不代表游戏内实测。
+```lua
+return {
+  passengerTemplate = "{lineType}-{transportType}{serviceType}-{placeA}-{placeB}-{lineNumber}",
+  freightTemplate = "{cargoTypes}-{placeA}-{placeB}-{lineNumber}",
+  numberWidth = 4,
+  labels = { zh_CN = { train = "火车" }, en = { train = "Rail" } },
+  cargoOverrides = { coal = { short = "煤", code = "COAL" } },
+}
+```
+
+## 更新和验证
+
+revision 4 修复 Build 40408 中 `naming_runtime.lua` 的 `get_native` 致命断言：模拟线程统一使用普通表存储 API，调度心跳不写入存档。高级配置、管理状态、编号及待确认命令仍按版本 2 状态格式保存。旧存档直接继续使用；更新后需要重新启动游戏，让脚本重新加载。
+
+同一 Mod ID `xiaom_auto_line_names`；revision 2 状态迁移至 2，保留受保护名称和待确认改名命令。仅修改名称、保留 cosmetic 属性，停用后名称不还原。无需依赖。原有封面及 mod.io 绑定 6426466 保留，本次不上传。
+
+71 项测试：`py -3.11 -X utf8 .agents/tests/test_auto_line_names.py`、`py -3.11 -X utf8 .agents/tests/test_line_names_v3.py`、`py -3.11 -X utf8 .agents/tests/test_line_names_ui.py`。模拟测试与游戏实测分开记录，见 VALIDATION.md。
+
+## English
+
+Revision 4 fixes the fatal `get_native` assertion in Build 40408 by using the plain-table GameScript storage API. Scheduling heartbeats do not write save data. Save state version 2 remains compatible; restart the game to load the updated scripts.
+
+Select naming format, label language, place/cargo styles and refresh interval in loading options. The line manager provides batch preview and confirmation, enabling ongoing updates after takeover. Manual names are protected; rename to `r` or `reload` to resume. Edit `content/user_config.lua`, restart TF3, then use Reload configuration. Applied advanced settings live in each savegame and survive mod updates. This local upgrade does not upload to mod.io.

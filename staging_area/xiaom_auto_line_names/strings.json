@@ -1,0 +1,34 @@
+{
+  "en": {
+    "aln_language": "en"
+  },
+  "zh_CN": {
+    "aln_language": "zh_CN",
+    "Naming format": "命名格式",
+    "Full information": "完整信息",
+    "Original format": "原始格式",
+    "Compact": "紧凑格式",
+    "Custom template": "自定义模板",
+    "Label language": "标签语言",
+    "Game language": "跟随游戏语言",
+    "Chinese": "中文",
+    "English": "英文",
+    "Place names": "地点名称",
+    "Town name": "城市全名",
+    "Short town name": "城市简称",
+    "Station name": "站点名称",
+    "Industry name": "产业名称",
+    "Cargo names": "货物名称",
+    "Full cargo name": "货物全名",
+    "Short cargo name": "货物简称",
+    "Cargo code": "货物代码",
+    "Regional classification": "区域分类",
+    "Hidden": "隐藏",
+    "LO / IC / RE": "LO / IC / RE",
+    "Automatic refresh": "自动复核",
+    "Every 60 seconds": "每 60 秒",
+    "New lines only": "仅命名新线路",
+    "Every 30 seconds": "每 30 秒",
+    "Every 120 seconds": "每 120 秒"
+  }
+}

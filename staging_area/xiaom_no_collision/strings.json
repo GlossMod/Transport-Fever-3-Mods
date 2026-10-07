@@ -1,0 +1,16 @@
+{
+  "en": {
+    "xiaom_anarchy_ready": "The road or building preview is ready for Anarchy construction.",
+    "xiaom_anarchy_preview_hint": "The native preview may stay red. Use this button to build the last preview with normal construction costs.",
+    "xiaom_anarchy_build": "Build with Anarchy",
+    "xiaom_anarchy_building": "Building…",
+    "xiaom_anarchy_failed": "The engine rejected this proposal. Adjust the preview and try again."
+  },
+  "zh_CN": {
+    "xiaom_anarchy_ready": "此道路或建筑预览可通过 Anarchy 提交建造。",
+    "xiaom_anarchy_preview_hint": "原版预览可能仍为红色；点击此按钮强制建造最后显示的预览，正常收取费用。",
+    "xiaom_anarchy_build": "强制建造当前预览",
+    "xiaom_anarchy_building": "正在建造……",
+    "xiaom_anarchy_failed": "引擎拒绝了此建造方案，请调整预览后重试。"
+  }
+}

@@ -42,10 +42,26 @@ function ui.getParams(param)
 end
 
 local function tr(key) return _("xiaom_network_" .. key) end
-local function text(value)
-    return builtin.TextView {meta = {class = "network-upgrade-text"}, text = value or "", useUnicodeCompatibilityFont = true}
+local function text(value, class)
+    return builtin.TextView {meta = {class = "network-text" .. (class and "," .. class or "")},
+        text = value or "", useUnicodeCompatibilityFont = true}
 end
 local function fmt(key, ...) return string.format(tr(key), ...) end
+local function panel(class, children, horizontal)
+    return builtin.Component {
+        meta = {class = class},
+        layout = builtin.BoxLayout {
+            orientation = horizontal and builtin.type.Orientation.Horizontal or builtin.type.Orientation.Vertical,
+            children = children,
+        },
+    }
+end
+local function metric(label, value, tone)
+    return panel("network-metric", {
+        text(lang.formatInt(value), "network-number," .. (tone or "network-ink")),
+        text(tr(label), "network-caption"),
+    })
+end
 local function money(value)
     local prefix = api.util.getAppConfig().moneyPrefix or "$"
     return prefix .. lang.formatInt(math.floor((value or 0) + 0.5))
@@ -117,28 +133,58 @@ function ui.select(owner, param, entity, details, readSource)
     api.gui.byId.setVisible(windowId, true)
 end
 
-local function issueLines(session)
+local function issueLines(session, expanded)
     local children = {}
     local keys = {}
     for reason in pairs(session.reasons) do keys[#keys + 1] = reason end
-    table.sort(keys)
-    for _, reason in ipairs(keys) do children[#children + 1] = text(fmt("reason_count", tr("reason_" .. reason), session.reasons[reason])) end
-    if #session.details > 0 then
-        local shown = 0
+    table.sort(keys, function(a, b)
+        if session.reasons[a] == session.reasons[b] then return a < b end
+        return session.reasons[a] > session.reasons[b]
+    end)
+    for _, reason in ipairs(keys) do
+        children[#children + 1] = text(fmt("reason_count", tr("reason_" .. reason), session.reasons[reason]), "network-reason")
+    end
+    if expanded and #session.details > 0 then
         for _, item in ipairs(session.details) do
-            if item.message ~= "" then
-                children[#children + 1] = text(fmt("detail", item.entity or -1, item.message))
-                shown = shown + 1
-                if shown >= 8 then break end
+            local message = item.message:gsub("%s+", " ")
+            -- Keep the full trace in the log. Bound UI text even for long engine errors.
+            if #message > 540 then
+                local cut = 540
+                -- Avoid cutting a UTF-8 continuation byte; no extra library.
+                while cut > 0 and message:byte(cut + 1) >= 128 and message:byte(cut + 1) < 192 do cut = cut - 1 end
+                message = message:sub(1, cut) .. "…"
             end
+            children[#children + 1] = panel("network-error-item", {
+                text(fmt("detail_group", tr("reason_" .. item.reason), item.entity or -1, item.count), "network-warning"),
+                text(message, "network-note"),
+            })
+            if #children >= #keys + 5 then break end
         end
-        if #session.details > 8 then children[#children + 1] = text(tr("details_hint")) end
+        children[#children + 1] = text(tr("details_hint"), "network-note")
     end
     return children
 end
 
+local function progress(session)
+    local phase = session.phase == "done" and session.finishedPhase or session.phase
+    if phase == "scanning" then return 0, fmt("scanned", session.total) end
+    if phase == "checking" then
+        return session.checked / math.max(1, session.total), fmt("checked", session.checked, session.total)
+    end
+    if phase == "verifying" then
+        local count = #(session.entries or {}) + #(session.nodeKeys or {})
+        local checked = session.verifyIndex + session.verifyNodeIndex - 2
+        return checked / math.max(1, count), tr("status_verifying")
+    end
+    if phase == "applying" then
+        return session.processed / math.max(1, #session.ready), fmt("processed", session.processed, #session.ready)
+    end
+    return session.checked / math.max(1, session.total), fmt("checked", session.checked, session.total)
+end
+
 Window = react.RegisterWrapperRecipe("XiaomConnectedNetworkUpgradeWindow", builtin.Window, function(session)
     local state = react.useState(0)
+    local expanded = react.useState(false)
     local tickQueued = react.useRef(false)
     react.onStep(function()
         if state:old() ~= session.version then state:set(session.version) end
@@ -158,60 +204,86 @@ Window = react.RegisterWrapperRecipe("XiaomConnectedNetworkUpgradeWindow", built
         if event and event.active == false then controller.invalidate(session.owner, "target_changed") end
     end)
     local progressing = session.phase == "scanning" or session.phase == "checking" or session.phase == "verifying" or session.phase == "applying"
-    local children = {
-        text(fmt("target", session.intent.name or "")),
-        text(fmt("network_kind", tr(session.intent.network))),
-        session.intent.invert and text(tr(session.intent.action == "ACTION_STREET_BUILDER_UPGRADER" and "reverse" or "inverse")) or nil,
-        text(tr("status_" .. session.message)),
-        text(fmt("counts", session.total, #session.ready, session.unchanged, session.skipped, session.failed)),
-        text(fmt("estimate", money(session.estimate))),
-        text(tr("estimate_hint")),
+    local target = {
+        text(fmt("target_caption", tr(session.intent.network)), "network-caption,network-accent"),
+        text(session.intent.name or "", "network-target-name"),
     }
-    -- Keep a dense child array; a nil optional item truncates ipairs/native lists.
-    local dense = {}
-    for i = 1, 7 do if children[i] then dense[#dense + 1] = children[i] end end
-    children = dense
-    if #(session.intent.labels or {}) > 0 then
-        table.insert(children, 2, text(table.concat(session.intent.labels, " · ")))
+    if #(session.intent.labels or {}) > 0 then target[#target + 1] = text(table.concat(session.intent.labels, " · "), "network-note") end
+    if session.intent.invert then
+        target[#target + 1] = text(tr(session.intent.action == "ACTION_STREET_BUILDER_UPGRADER" and "reverse" or "inverse"), "network-warning")
     end
-    if session.phase == "checking" then children[#children + 1] = text(fmt("checked", session.preflightIndex - 1, session.total)) end
-    if session.phase == "applying" or session.phase == "done" then
-        children[#children + 1] = text(fmt("progress", session.processed, #session.ready, session.succeeded, money(session.actualCost)))
+    local value, label = progress(session)
+    local tone = (session.message == "error" or session.message == "native_error") and "network-danger"
+        or (session.message == "funds" or session.phase == "stale" or session.message == "nothing") and "network-warning"
+        or (session.message == "complete" or session.message == "ready") and "network-success" or "network-accent"
+    local status = {text(tr("status_" .. session.message), "network-status-text," .. tone)}
+    status[#status + 1] = builtin.ProgressBar {
+        meta = {class = "network-progress"}, value = math.min(1, math.max(0, value)), label = label,
+    }
+    local phase = session.phase == "done" and session.finishedPhase or session.phase
+    local incomplete = phase == "scanning" or phase == "checking"
+    local costCaption = incomplete and (session.phase == "done" and "cost_caption_incomplete" or "cost_caption_pending") or "cost_caption"
+    local costs = {
+        text(tr(costCaption), "network-caption"),
+        text(incomplete and #session.ready == 0 and "—" or money(session.estimate), "network-price,network-accent"),
+    }
+    if phase == "applying" then
+        costs[#costs + 1] = text(fmt("charged", money(session.actualCost)), "network-success")
     end
-    local reasonChildren = issueLines(session)
+    costs[#costs + 1] = text(tr("estimate_hint"), "network-note")
+    local children = {
+        panel("network-target", target),
+        panel("network-status", status),
+        panel("network-metric-row", {
+            metric("metric_found", session.total), metric("metric_planned", #session.ready, "network-accent"),
+            metric("metric_matching", session.unchanged, "network-success"),
+        }, true),
+        panel("network-metric-row", {
+            metric("metric_success", session.succeeded, "network-success"), metric("metric_skipped", session.skipped, "network-warning"),
+            metric("metric_failed", session.failed, session.failed > 0 and "network-danger" or "network-muted"),
+        }, true),
+        panel("network-cost", costs),
+    }
+    local reasonChildren = issueLines(session, expanded:old())
     if #reasonChildren > 0 then
-        children[#children + 1] = builtin.ScrollArea {
-            meta = {class = "network-upgrade-reasons"},
-            content = builtin.Component {layout = builtin.BoxLayout {
-                orientation = builtin.type.Orientation.Vertical, children = reasonChildren,
-            }},
-        }
+        local heading = {text(tr("reasons_title"), "network-section-title")}
+        if #session.details > 0 then
+            heading[#heading + 1] = builtin.Button {
+                meta = {class = "network-detail-toggle"},
+                content = text(tr(expanded:old() and "hide_details" or "show_details")),
+                onClick = function() expanded:set(not expanded:old()) end,
+            }
+        end
+        children[#children + 1] = panel("network-reasons", {
+            panel("network-reason-heading", heading, true),
+            panel("network-reason-content", reasonChildren),
+        })
     end
-    children[#children + 1] = builtin.BoxLayout {
-        orientation = builtin.type.Orientation.Horizontal,
-        children = {
+    local actions = panel("network-actions", {
             builtin.Button {
-                meta = {class = "primary", enabled = session.phase == "ready" and #session.ready > 0},
+                meta = {class = "primary,network-button", enabled = session.phase == "ready" and #session.ready > 0},
                 content = text(tr("confirm")),
                 onClick = function() controller.confirm(session) end,
             },
             builtin.Button {
-                meta = {enabled = progressing and not session.cancelled},
+                meta = {class = "secondary,network-button", enabled = progressing and not session.cancelled},
                 content = text(tr("cancel")),
                 onClick = function() controller.cancel(session) end,
             },
             builtin.Button {
-                meta = {enabled = not progressing and not session.pending},
+                meta = {class = "network-button", enabled = not progressing and not session.pending},
                 content = text(tr("close")),
                 onClick = function() ui.close(session) end,
             },
-        },
-    }
+    }, true)
     return builtin.Window {
         id = windowId, title = tr("title"), initialX = 20, initialY = 100, movable = true,
         closable = not progressing and not session.pending,
         onClose = function() ui.close(session) end,
-        content = builtin.BoxLayout {meta = {class = "network-upgrade-body"}, orientation = builtin.type.Orientation.Vertical, children = children},
+        content = panel("network-content", {
+            builtin.ScrollArea {meta = {class = "network-main-scroll"}, content = panel("network-body", children)},
+            actions, text(tr("confirm_hint"), "network-note"),
+        }),
     }
 end)
 
@@ -272,10 +344,28 @@ Action = react.RegisterWrapperRecipe("XiaomConnectedNetworkUpgradeAction", built
     local highlights = {}
     if session and session.owner == owner and session.phase ~= "done" and session.phase ~= "stale" then
         for _, entry in ipairs(session.entries or {}) do highlights[#highlights + 1] = entry.entity end
-        if session.previewProposal then
+        if session.quote then
+            local request = session.quote
+            children[#children + 1] = builtin.ProposalViewer {
+                proposal = request.proposal,
+                proposalId = toolKey .. ":" .. tostring(session.id) .. ":quote:" .. tostring(request.id),
+                entityForRefundableContext = api.engine.util.getPlayer(),
+                onCreateProposalData = function(data, generated)
+                    -- Native callback values are borrowed. Read them here and
+                    -- pass only a scalar receipt to the main-thread controller.
+                    -- For a full Proposal, the native callback may supply only
+                    -- ProposalData; our input is already an owned full proposal.
+                    local ok, receipt = core.protect(core.capturePreview, request.entity, data, generated or request.proposal)
+                    if not ok then receipt = {valid = false, reason = "api", detail = "native preview: " .. receipt} end
+                    react.enqueueJoin(function() controller.acceptQuote(session, request.id, receipt) end,
+                        "XiaomConnectedNetworkUpgrade:quote")
+                end,
+            }
+        elseif session.previewProposal then
             children[#children + 1] = builtin.ProposalViewer {
                 proposal = session.previewProposal,
                 proposalId = toolKey .. ":" .. tostring(session.id) .. ":" .. tostring(session.previewVersion),
+                entityForRefundableContext = api.engine.util.getPlayer(),
             }
         end
     end

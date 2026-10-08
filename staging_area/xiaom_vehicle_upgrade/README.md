@@ -26,7 +26,7 @@
 更新 Mod 后请重启游戏。无需额外 Mod 依赖。
 
 语言与发布状态
-发布标题、摘要和描述提供中文与英文；当前游戏内升级界面为中文。
+发布标题、摘要、描述和游戏内升级界面支持中文与英文。界面自动读取游戏语言：简体、繁体及其他中文区域设置使用中文，英文使用英文，其他语言或无法读取语言时默认英文；当前中文文案为简体中文。车型、货物与玩家命名的线路沿用游戏提供的名称。
 当前为功能开发版，最新变更尚未完成游戏内验收，建议先在存档副本中使用。
 封面为 AI 生成的功能示意插画。
 
@@ -50,18 +50,18 @@ Uses the game's native replacement command. Starts with lower net-cost vehicles,
 
 How to use
 1. Enable the mod and load a copy of your savegame.
-2. Open Statistics → Vehicles → the vehicle upgrade button.
+2. Open Statistics → Vehicles → Upgrade Vehicles.
 3. Review or edit group and individual targets; check capacity, power requirements and costs.
 4. Confirm the upgrade and review the per-vehicle results.
 Restart the game after updating the mod. No additional mod dependencies.
 
 Language and release status
-The listing title, summary and description are bilingual. The in-game upgrade interface is currently Chinese.
+The listing and in-game upgrade interface support Chinese and English. The interface follows the game language: Chinese locales use Chinese, English uses English, and all other languages or unavailable language settings default to English. Chinese UI text uses simplified Chinese. Model, cargo and player-named line names retain the names supplied by the game.
 This is a development release. Full in-game acceptance checks for the latest changes have not been completed; use a savegame copy first.
 Cover: AI-generated illustration of the mod's purpose.
 
-revision 10 — 发布资料整理 / Publication materials
+revision 11 — 中英文自适应界面 / Adaptive Chinese and English UI
 
-中文：准备中英双语标题、摘要、描述和独立上传包，沿用 Fleet Upgrade 封面。运行代码沿用 revision 9：支出上涨时按最新报价继续升级，余额不足仍停止；保留可编辑预览、货物用途匹配、折旧报价和逐辆执行。
+中文：升级入口、预览、筛选、费用、进度、状态和错误提示实现中英双语。自动读取游戏语言，中文设置使用中文，其他语言默认英文。执行状态使用固定标识，避免显示语言影响队列。保持按最新报价升级及资金不足停止的行为。本版未执行自动化或实机测试。
 
-English: Adds a bilingual title, summary, description and a clean upload archive, retaining the Fleet Upgrade cover. Runtime code is unchanged from revision 9: upgrades continue at the current quote when prices rise, while insufficient funds still stop execution. Includes editable previews, cargo-aware matching, depreciation pricing and sequential replacement.
+English: Localizes the entry button, preview, filters, costs, progress, statuses and error messages into Chinese and English. Reads the game language automatically; Chinese locales use Chinese and other languages default to English. Queue statuses use stable identifiers independent of displayed text. Retains current-price upgrades and insufficient-funds checks. Automated and in-game tests have not been run for this revision.

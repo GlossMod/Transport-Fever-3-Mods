@@ -1,6 +1,6 @@
 {
   "modId": "xiaom_connected_network_upgrade",
-  "revision": 2,
+  "revision": 5,
   "severityAdd": "None",
   "severityRemove": "None",
   "visible": true,

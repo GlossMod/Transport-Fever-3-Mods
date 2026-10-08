@@ -1,6 +1,7 @@
 -- Pure planning functions. Prices are supplied by the native adapter, never
 -- estimated from a home-grown depreciation curve.
 local core = {}
+local t = (ug_require "xiaom_vehicle_upgrade::/upgrade_i18n.lua").t
 
 function core.copy(value)
     if type(value) ~= "table" then return value end
@@ -118,20 +119,20 @@ end
 
 function core.warnings(old, candidate, purpose)
     local result = {}
-    if candidate.speed < old.speed then result[#result + 1] = "最高速度下降" end
+    if candidate.speed < old.speed then result[#result + 1] = t("speed_decrease") end
     for cargo in pairs(purpose) do
         if (candidate.capacities[cargo] or 0) < (old.capacities[cargo] or 0) then
-            result[#result + 1] = "对应货物容量下降"; break
+            result[#result + 1] = t("capacity_decrease"); break
         end
     end
-    if candidate.power < old.power then result[#result + 1] = "功率下降" end
-    if candidate.traction < old.traction then result[#result + 1] = "牵引力下降" end
+    if candidate.power < old.power then result[#result + 1] = t("power_decrease") end
+    if candidate.traction < old.traction then result[#result + 1] = t("traction_decrease") end
     if candidate.electric and not old.electric then
-        result[#result + 1] = "需要供电线路／接触网，请确认整条线路已具备条件"
+        result[#result + 1] = t("electricity_warning")
     end
-    if candidate.length > old.length + 0.01 then result[#result + 1] = "长度增加，请检查站台／停靠设施" end
+    if candidate.length > old.length + 0.01 then result[#result + 1] = t("length_warning") end
     if candidate.physicalModes ~= old.physicalModes then
-        result[#result + 1] = "设施要求变化，请检查线路、车库与停靠设施"
+        result[#result + 1] = t("facilities_warning")
     end
     return result
 end
@@ -212,7 +213,7 @@ function core.allocate(slots, demands, maxNodes, coverage)
         return search(index + 1)
     end
     if search(1) then return chosen end
-    return nil, visited > limit and "货物组合较复杂，无法确认装载配置，请简化配置后再升级" or "目标舱室无法同时容纳当前载荷和手动货物配置"
+    return nil, t(visited > limit and "cargo_complex" or "cargo_does_not_fit")
 end
 
 function core.quote(snapshot, changes, catalogByKey)
@@ -221,7 +222,7 @@ function core.quote(snapshot, changes, catalogByKey)
         local key = changes[unit.index]
         if key and key ~= unit.old.key then
             local target = catalogByKey[key]
-            if not target then return nil, "目标车型已不可用" end
+            if not target then return nil, t("target_unavailable") end
             purchase = purchase + target.price
             changed = changed + 1
         else
@@ -260,47 +261,46 @@ function core.snapshotChange(before, after)
         if a ~= b then return field, label, tostring(a) .. " -> " .. tostring(b) end
     end
     for _, field in ipairs({"entity", "line", "depot", "filterSignature"}) do
-        local labels = {entity = "载具身份", line = "分配线路", depot = "车库状态", filterSignature = "线路货物过滤"}
-        local code, label, detail = difference(before[field], after[field], field, labels[field])
+        local labels = {entity = "field_entity", line = "field_line", depot = "field_depot", filterSignature = "field_filter"}
+        local code, label, detail = difference(before[field], after[field], field, t(labels[field]))
         if code then return code, label, detail end
     end
-    if #before.units ~= #after.units then return "units", "编组数量", #before.units .. " -> " .. #after.units end
+    if #before.units ~= #after.units then return "units", t("field_units"), #before.units .. " -> " .. #after.units end
     for index, old in ipairs(before.units) do
         local new = after.units[index]
         local prefix = "unit[" .. index .. "]"
-        local labelPrefix = "部件组 " .. index .. "："
-        if old.old.key ~= new.old.key then return prefix .. ".model", labelPrefix .. "车型", old.old.key .. " -> " .. new.old.key end
-        if old.count ~= new.count then return prefix .. ".count", labelPrefix .. "节数", old.count .. " -> " .. new.count end
-        if #old.parts ~= #new.parts then return prefix .. ".parts", labelPrefix .. "节数", #old.parts .. " -> " .. #new.parts end
+        local labelPrefix = t("field_group", index)
+        if old.old.key ~= new.old.key then return prefix .. ".model", labelPrefix .. t("field_model"), old.old.key .. " -> " .. new.old.key end
+        if old.count ~= new.count then return prefix .. ".count", labelPrefix .. t("field_parts"), old.count .. " -> " .. new.count end
+        if #old.parts ~= #new.parts then return prefix .. ".parts", labelPrefix .. t("field_parts"), #old.parts .. " -> " .. #new.parts end
         for partIndex, part in ipairs(old.parts) do
             local current = new.parts[partIndex]
             local partPrefix = prefix .. ".part[" .. partIndex .. "]"
-            local partLabel = labelPrefix .. "第 " .. partIndex .. " 节 "
+            local partLabel = labelPrefix .. t("field_part", partIndex)
             for _, field in ipairs({"modelId", "purchaseTime", "reversed"}) do
-                local labels = {modelId = "车型", purchaseTime = "购买时间", reversed = "朝向"}
-                local code, label, detail = difference(part[field], current[field], partPrefix .. "." .. field, partLabel .. labels[field])
+                local labels = {modelId = "field_model", purchaseTime = "field_purchase_time", reversed = "field_orientation"}
+                local code, label, detail = difference(part[field], current[field], partPrefix .. "." .. field, partLabel .. t(labels[field]))
                 if code then return code, label, detail end
             end
             local code, label, detail = difference(table.concat(part.color or {}, ","), table.concat(current.color or {}, ","),
-                partPrefix .. ".color", partLabel .. "颜色")
+                partPrefix .. ".color", partLabel .. t("field_color"))
             if code then return code, label, detail end
-            if #part.loads ~= #current.loads then return partPrefix .. ".loads", partLabel .. "舱室数量", #part.loads .. " -> " .. #current.loads end
+            if #part.loads ~= #current.loads then return partPrefix .. ".loads", partLabel .. t("field_compartments"), #part.loads .. " -> " .. #current.loads end
             for compartment, load in ipairs(part.loads) do
                 local actual = current.loads[compartment]
                 local loadPrefix = partPrefix .. ".compartment[" .. compartment .. "]"
                 local auto = (part.auto or {})[compartment]
                 local currentAuto = (current.auto or {})[compartment]
-                code, label, detail = difference(auto, currentAuto, loadPrefix .. ".auto", partLabel .. "自动装载开关")
+                code, label, detail = difference(auto, currentAuto, loadPrefix .. ".auto", partLabel .. t("field_auto"))
                 if code then return code, label, detail end
-                local mode = auto and "自动装载" or "手动装载"
-                code, label, detail = difference(load.index, actual.index, loadPrefix .. ".loadIndex", partLabel .. mode .. "配置")
+                code, label, detail = difference(load.index, actual.index, loadPrefix .. ".loadIndex", partLabel .. t(auto and "field_auto_config" or "field_manual_config"))
                 if code then return code, label, detail end
-                code, label, detail = difference(load.cargo, actual.cargo, loadPrefix .. ".cargo", partLabel .. mode .. "货物")
+                code, label, detail = difference(load.cargo, actual.cargo, loadPrefix .. ".cargo", partLabel .. t(auto and "field_auto_cargo" or "field_manual_cargo"))
                 if code then return code, label, detail end
             end
         end
     end
-    return "signature", "载具配置签名", tostring(before.signature) .. " -> " .. tostring(after.signature)
+    return "signature", t("field_signature"), tostring(before.signature) .. " -> " .. tostring(after.signature)
 end
 
 return core

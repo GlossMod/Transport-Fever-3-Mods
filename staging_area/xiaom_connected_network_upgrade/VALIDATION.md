@@ -1,6 +1,21 @@
-# revision 2 用户手动复测清单
+# revision 5 用户手动复测清单
 
 状态：**修复版未游戏内验证**。本次仅阅读已有日志、本机原版代码、类型定义和 Mod 源码，没有运行检查器、自动化测试、游戏或 Model Editor。以下全部为待用户执行的验收项目，不代表已经通过。
+
+## 本次修复及优先复测（revision 5）
+
+- 最新日志仍来自下述 `stdout.txt`。UTC 2026-10-08 04:37:05 注册 revision 4；04:37:42、04:38:40 对实体 `72086` 预检时均报 `network_core.lua:293: attempt to index field 'SegmentAndEntity' (a nil value)`。本地时间为 12:37:42、12:38:40。
+- 调用链：UI timer → controller.step → preflight → core.prepare → build → transform → ownedEdge。第一处复制源路段即失败，尚未调用原生刷新、报价或世界命令。这次错误不等同于 revision 3 的 `StreetTemplate::Get(-1)` 原生断言。
+- 本机类型导出依据：`api/tealdef/api/type.d.tl:3832` 的 `Type` 表将嵌套声明 `Proposal.SegmentAndEntity` 导出为根级 `SegmentAndEntity`。实际调用必须是 `api.type.SegmentAndEntity.new()`；已同时修复复制源边和创建替换段两处路径，并在使用前检查构造器。
+- 日志新增 runtime API 构造器清单、session／phase／event、起始实体与源模板、固定工具目标和参数、扫描完成、预览汇总、停止统计。确认、提交与回调日志使用同一 session ID。只有异常样本打印完整堆栈，不逐段打印正常预检详情。
+- 窗口在预检停止后保留“已检查 X / 总数”，显示“预检未完成”，无有效报价显示“—”；尚未进入执行阶段时不显示已结算费用。
+- **revision 5 未游戏内验证**；未启动游戏、Model Editor，也未运行测试、解析器或其他检查器。
+
+1. 完全退出并重启游戏，确认日志入口 `revision=5`，其后 `runtime API` 中 `api.type.SegmentAndEntity.new=function` 和 `api.type.Proposal.new=function`。
+2. 先在小型铁路网络选择不同模板预览，再尝试截图的 2409 段网络。确认不再出现 `SegmentAndEntity` nil 字段，预览有计划数量和有效报价；确认前轨道与余额保持原样。
+3. 检查已有目标段计为已符合、车站内锁定段跳过且仍继续遍历后方支线。桥梁、隧道和信号段保持范围、结构及设施。
+4. 点击确认后检查升级、逐段计费和重复执行；然后复测取消和余额不足。若再遇 API 异常，从同一 session 的 `event=begin`、`event=issue`、`event=stop` 获取目标、实体、阶段和完整正文。
+5. 若预检被取消或异常中断，进度仍按预检显示，部分报价明确标为未完成；未执行时不显示已结算费用。
 
 ## 2026-10-08 加载错误修复
 
@@ -9,11 +24,49 @@
 - 日志直接打印出旧规则 `{select = "#xiaom_connected_network_upgrade_window", style = ...}`。原版 `gui/main/stylesheetutil.lua` 的 `makeAdder` 返回含 `levels`、`styleSheet` 的完整规则；已改用此 helper。
 - 该 helper 的 ID 匹配规则为 `#[%a%d%-%.]+`，不包含下划线。同步将窗口 ID 与全部样式选择器改为 `xiaom-connected-network-upgrade-window`，防止作用域被截短。
 - 游戏扫描的 `staging_area` 是指向项目 `staging_area` 的目录联接，修改直接位于实际加载目录；无须另建副本。
-- 优先复测：完全退出并重启游戏，确认 revision 2，重新载入原存档，确认不再出现样式资源配置错误；再开启整网开关并检查预览窗口、长文本换行和跳过原因滚动区。修复仅依据日志及原版源码，尚未运行解析器或游戏复核。
+- 该修复在 revision 2 引入，后续版本保留。完全退出并重启游戏后确认当前 revision 5，检查不再出现样式资源配置错误。修复仅依据日志及原版源码，尚未运行解析器或游戏复核。
+
+## 2026-10-08 预检错误与 UI 修订（revision 3）
+
+- 日志仍来自上述 `stdout.txt`，本次读取的运行会话在 UTC 2026-10-07 20:48:52 安装 revision 2，并于 20:48:55 进入游戏；首批路网 API 错误出现在 20:49:21。
+- 截图中已检查 1900 / 2409 段，API 错误 901、路段变化 262、建筑锁定 737。日志只记录 `table: ...` 地址，没有异常正文和调用阶段，不能恢复这些异常的具体错误内容。建筑锁定为预期保护，不取消该保护。
+- 兼容性修订：移除直接调用 `makeProposalData` 的同步预检，改用本机原版 `gui/entity_window/bridge_and_tunnel.tl` 中的完整 `Proposal` + `ProposalViewer` + 玩家退款上下文路径。读取报价和错误后仅保留标量记录，通过 `react.enqueueJoin` 交给主线程；完整 proposal 回调没有第二参数时检查已有的自有 proposal。
+- 执行前逐段重新预检，等待原生命令回调；成功后更新原版可退款实体记录。回调重复或回调处理异常不会重复提交已经完成的命令。缺失预览回调时停止队列，显示超时原因。
+- 变化判断：保留实体身份检查，另比较几何、模板、车道、设施、归属、建筑关联，以及节点位置与同类邻接集合；不再无差别比较全部三个 ECS 计数器。普通运行中的动态计数变化是否已消除误判、外部修改是否正确捕获，均待实机验证。
+- 异常记录：表类型异常保留正文与调用堆栈，标注 transform / replaceSegment / clone / build / check / preview / callback 等阶段；同类重复错误合并计数，界面默认折叠，最多展示五类样本，日志保留完整首次正文。
+- UI：实色深色底板、蓝色目标卡、六张数量卡片、进度条、计算中的费用标识、独立跳过原因和折叠详情；主内容滚动，底部确认、取消和关闭按钮保持可见。
+- 本次没有运行 Lua/JSON 检查器、自动化测试、游戏或 Model Editor；所有改动仍为 **未游戏内验证**。旧日志无法证明所有 API 错误都来自同步报价，本次采用原生路径的修正需要用户复测。
+
+### revision 3 的复测步骤
+
+1. 完全退出并重启游戏，确认日志入口 `revision=3`。先在暂停的小地图上选普通铁路，预览可升级与已符合各一段，确认不再只有 `table: ...` 地址或全部被 API 错误跳过。
+2. 确认按钮未点击前，余额与铁路保持原样。收到全部报价后再确认，检查命令结果、费用及进度；重复执行应计为已符合。
+3. 在列车运行时重新预览，观察未编辑轨道是否仍大量被误判变化；另实际编辑一段轨道，确认旧预览不能执行。车站内锁定轨道仍跳过并继续向后遍历。
+4. 预检时取消、执行中取消或切换工具，确认没有后续命令、无重复结算，已完成结果保留；若预览未响应，应有明确超时结果。
+5. 检查六张数量卡片、长目标名称、费用计算中状态、滚动和折叠详情、固定底部按钮，以及中文／英文与不同 UI 缩放。若仍有 API 错误，查看日志首次 `stage=` 行及其后完整堆栈。
+
+## 2026-10-08 原生断言崩溃修复（revision 4）
+
+- 日志：同一 `stdout.txt` 的最新运行段，UTC 2026-10-07 21:33:34 安装 revision 3，21:33:48 进入游戏，21:34:03 首个错误包装异常，21:34:04 原生断言并崩溃。对应本地时间 2026-10-08 05:34:03–05:34:05。崩溃记录 `43526b7b-1e41-40b1-a4b1-a7071b85a6cd_3.json` 确认 Build 40408。
+- 第一处已证实的问题：`network_core.lua:37` 直接拼接异常返回值，报 `attempt to concatenate field '?' (a table value)`。原生异常可以返回表而不经过 Lua `xpcall` handler。本次在 `xpcall` 返回处和阶段包装处都统一调用 `core.errorText`，避免二次异常盖住原始报错。
+- 第二处已证实的问题：实体 90878 的预检在 `replaceSegment` 中触发 `ResTypeRep<StreetTemplate>::Get` 的 `-1 <= -1` 断言。旧队列随后继续调用，出现多次 `ParkException / CheckedCall: !g_parkedException`，最后 `HandleCrash`。实体 90902 的后续接口异常也记录为 `locked`。这是 C++ 原生断言链，不能把 `pcall/xpcall` 当成保证能恢复引擎状态的手段。
+- 调用修订：采用 API 定义支持的 `replaceSegment(entity)` 源路段刷新形式，不再传入目标模板参数。已选模板和样式先检查仓库索引，使用仓库 `getName` 返回的标准名称，然后写入自有方案。日志只能确定故障位于带目标参数的调用内，不能确定 helper 内部具体哪次资源查找返回了 `-1`；无参数刷新形式仍需实机确认。
+- 所有权修订：设计为通过新建路段记录复制源 `BaseEdge` 再编辑，用 `Proposal.new()` 接收原生刷新结果；revision 4 此处误用了嵌套声明名，最新日志已证实无法构造，revision 5 改为根级 `api.type.SegmentAndEntity.new()`。自有记录的可编辑性和设施保留仍需复测。
+- 锁定过滤：任何非负的边所属建筑都视为建筑锁定，不再要求该 ID 上必须恰好存在 `CONSTRUCTION`；还核对节点所属建筑／子建筑的 `frozenEdges`。仅相邻于冻结节点但不在冻结边列表的外部路段仍可升级。锁定路段继续参与连通遍历。
+- 队列修订：未知准备、报价或提交 API 异常立即停止。刷新 helper 抛异常时，本次会话后续刷新调用禁用并明确提示重启。正常不兼容、碰撞检查和命令拒绝仍按原来的逐段跳过／失败处理，不绕过引擎检查。
+- 没有启动游戏、运行检查器或自动化测试。崩溃存档、原存档、游戏安装文件和其他 Mod 均未修改。**revision 4 未游戏内验证**。
+
+### revision 4 的历史复测步骤（当前使用 revision 5）
+
+1. 完全退出并重启游戏，确认当前日志注册行 `revision=5`。先在存档副本的小型铁路网络上选择另一种轨道，预览应显示计划数量及报价；没有确认之前路段和余额保持原样。
+2. 在旧版崩溃的铁路网络上预览。确认没有 `StreetTemplate::Get(-1)`、表值拼接错误或连续 `!g_parkedException`。若出现新的 API 异常，应立即停止任务并显示正文，日志记录第一个阶段和实体。
+3. 确认升级普通路段、带信号路段、桥梁及隧道。检查目标模板、速度、电气化、几何、结构、归属和设施保留；再执行应计为已符合，不重复收费。含自定义模板时还核对模板自身的噪声／污染设置。
+4. 测试车站内部、子建筑冻结边和车站外部连接段：内部锁定段跳过，外部连接段及后方支线继续遍历与升级，车站建筑不拆建。
+5. 测试取消、余额不足及原生检查拒绝；未知原生接口异常后不能继续刷新。已完成升级保留，未提交段不扣款。
 
 ## 准备
 
-- 完全退出并重启 TF3，确认“相连路网批量升级”revision 2 可见并启用。
+- 完全退出并重启 TF3，确认“相连路网批量升级”revision 5 可见并启用。
 - 使用存档副本或小型地图，先暂停游戏，预留正常升级所需余额。
 - 准备两个不相连的铁路网络、两个不相连的公路网络；其中一片包含环路、分叉、桥梁、隧道、站点及平交道口。
 - 为道路和铁路准备至少两种现有模板；铁路混合普通、高速、电气化和未电气化轨道。至少一段有信号、一段有站点／路径点。
@@ -65,10 +118,12 @@
 
 - `api/tealdef/api/engine.d.tl`：`BaseEdge`、归属、实体和节点版本。
 - `api/tealdef/api/engine/system.d.tl`：`StreetSystem` 邻接关系与 `StreetConnectorSystem` 建筑归属。
-- `api/tealdef/api/engine/util.d.tl`：`replaceSegment`、`makeProposalData` 和余额读取。
+- `api/tealdef/api/engine/util.d.tl`：`replaceSegment` 和余额读取。
 - `api/tealdef/api/type.d.tl`：路网模板、电气化映射、车道、设施、proposal 和 context。
 - `api/tealdef/api/cmd.d.tl`：`makeWorldBuildProposalCmd`、命令回调。
 - `base/content/gui.zip`：原版建造定义、自定义动作绑定、参数和 React API。
+- 同包 `gui/entity_window/bridge_and_tunnel.tl`：完整 proposal 原生预览、报价、玩家上下文及命令成功后退款实体更新。
+- `base/tealdef/scripts/builtin.d.tl`：`ProposalViewer` 回调和 `ProgressBar` 参数。
 - `base/content/infrastructure/street.zip`：原版车道方向及公路模板。
 
 运行态兼容性、原生 proposal 写回及成本核算均待实机确认。日志请查 `[xiaom_connected_network_upgrade]` 和当前运行中的首个相关异常。

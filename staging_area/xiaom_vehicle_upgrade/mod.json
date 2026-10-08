@@ -1,6 +1,6 @@
 {
   "modId": "xiaom_vehicle_upgrade",
-  "revision": 10,
+  "revision": 11,
   "severityAdd": "None",
   "severityRemove": "None",
   "visible": true,

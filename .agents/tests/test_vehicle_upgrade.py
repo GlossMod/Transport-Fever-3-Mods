@@ -20,6 +20,10 @@ function clone(v)
 end
 function debugPrint() end
 function _(s) return s end
+gameLanguage = "zh_CN"
+app = {getUserProfile = function()
+    return {getLanguage = function() return {code = gameLanguage} end}
+end}
 models, names, mus, muNames, entities, lines = {}, {}, {}, {}, {}, {}
 year, balance, gameTime = 2000, 1000000, 10000
 commands, callbacks, events, protected, restrictions = {}, {}, {}, {}, {}
@@ -150,9 +154,10 @@ externals={['::/gui/line_vehicle_mgmt/vehicle_store_util.tl']=storeMock,
 '''
 
 
-def runtime():
+def runtime(language="zh_CN"):
     lua = LuaRuntime(unpack_returned_tuples=True)
     lua.execute(FIXTURE)
+    lua.globals().gameLanguage = language
     cache = {}
 
     def require(name):
@@ -434,7 +439,7 @@ class UpgradeTests(unittest.TestCase):
             entities[11].refund=300;controller.step()
             local session=controller.read()
             assert(#commands==1 and session.phase=="result" and session.results.success==1 and session.results.failed==1)
-            assert(row(1).status=="成功" and row(2).status=="失败" and row(2).error:find("余额不足",1,true))''')
+            assert(row(1).status=="success" and row(2).status=="failed" and row(2).error:find("余额不足",1,true))''')
 
     def test_catalog_rebuilt_after_closing_window_and_loading_another_game(self):
         self.run_lua('''model(1,{1},10);model(2,{1},20,{year=1950});vehicle(10,{part(1,1)});scan()
@@ -460,7 +465,7 @@ class UpgradeTests(unittest.TestCase):
             scan();preflight();controller.step();assert(commands[1].entity==10)
             finishCommand(true);controller.step();assert(commands[2].entity==11)
             finishCommand(false);controller.step();assert(#commands==2 and controller.read().phase=="result")
-            assert(row(1).status=="成功" and row(2).status=="失败" and row(3).status=="未执行")''')
+            assert(row(1).status=="success" and row(2).status=="failed" and row(3).status=="skipped")''')
 
     def test_runtime_cargo_increase_stops_queue_before_command(self):
         self.run_lua('''model(1,{1},10);model(2,{1},20,{year=1950});vehicle(10,{part(1,1)});scan();preflight()

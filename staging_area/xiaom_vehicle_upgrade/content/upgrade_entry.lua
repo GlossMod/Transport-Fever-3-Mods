@@ -3,6 +3,7 @@ local builtin = ug_require "::/gui/main/builtin.lua"
 local statistics = ug_require "::/gui/statistics/statistics.tl"
 local originalVehicles = ug_require "::/gui/statistics/statistic_vehicles.tl"
 local ui = ug_require "xiaom_vehicle_upgrade::/upgrade_ui.lua"
+local i18n = ug_require "xiaom_vehicle_upgrade::/upgrade_i18n.lua"
 local entry = {}
 local gameCtx, installed
 local originalEntry = statistics.StatisticsEntryPoint
@@ -16,13 +17,14 @@ end)
 -- wrapping BoxLayout directly creates a layout root and causes a native
 -- downcast failure when the statistics tab mounts or reuses the component.
 local VehicleTab = react.RegisterRecipe("XiaomUpgradeVehicleTab", function(param)
+    i18n.refresh()
     return builtin.BoxLayout {
         meta = {class = "upgrade-vehicle-tab"}, orientation = builtin.type.Orientation.Vertical,
         children = {
             builtin.BoxLayout {meta = {class = "upgrade-tab-toolbar"}, orientation = builtin.type.Orientation.Horizontal,
                 children = {builtin.Button {
-                    meta = {id = "xiaom-vehicle-upgrade-button", class = "primary", tooltip = "扫描全公司载具，预览并选择升级目标"},
-                    content = builtin.TextView {text = "升级载具", useUnicodeCompatibilityFont = true},
+                    meta = {id = "xiaom-vehicle-upgrade-button", class = "primary", tooltip = i18n.t("upgrade_tooltip")},
+                    content = builtin.TextView {text = i18n.t("upgrade_button"), useUnicodeCompatibilityFont = true},
                     onClick = function() ui.open(gameCtx) end,
                 }},
             },

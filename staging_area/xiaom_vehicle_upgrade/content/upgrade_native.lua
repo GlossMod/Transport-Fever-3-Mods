@@ -1,4 +1,5 @@
 local core = ug_require "xiaom_vehicle_upgrade::/upgrade_core.lua"
+local t = (ug_require "xiaom_vehicle_upgrade::/upgrade_i18n.lua").t
 local store = ug_require "::/gui/line_vehicle_mgmt/vehicle_store_util.tl"
 local vehicleUtil = ug_require "::/gui/line_vehicle_mgmt/vehicle_util.tl"
 local cargoUtil = ug_require "::/gui/main/cargo_util.tl"
@@ -182,11 +183,11 @@ local function groupReversed(unit)
 end
 
 function native.snapshot(entity)
-    if not api.engine.entityExists(entity) then return nil, "载具已被出售或删除" end
+    if not api.engine.entityExists(entity) then return nil, t("sold") end
     local owned = api.engine.getComponent(entity, api.type.ComponentType.PLAYER_OWNED)
-    if not owned or owned.player ~= api.engine.util.getPlayer() then return nil, "载具已不属于当前公司" end
+    if not owned or owned.player ~= api.engine.util.getPlayer() then return nil, t("not_owned") end
     local tv = api.engine.getComponent(entity, api.type.ComponentType.TRANSPORT_VEHICLE)
-    if not tv then return nil, "找不到载具" end
+    if not tv then return nil, t("not_found") end
     local lineEntity = tv.line
     local filtered, line = {}, nil
     if lineEntity >= 0 and api.engine.entityExists(lineEntity) then
@@ -201,7 +202,7 @@ function native.snapshot(entity)
     end
     local result = {
         entity = entity, name = api.engine.util.getEntityName(entity), carrier = tv.carrier,
-        line = lineEntity, depot = tv.depot, lineName = line and api.engine.util.getEntityName(lineEntity) or "未分配线路",
+        line = lineEntity, depot = tv.depot, lineName = line and api.engine.util.getEntityName(lineEntity) or t("unassigned"),
         units = {}, loaded = {}, filterSignature = core.key(filtered),
         depreciated = api.engine.util.vehicle.getDepreciatedValue(entity),
     }
@@ -217,7 +218,7 @@ function native.snapshot(entity)
     if #groups == 0 then for _ in ipairs(config.vehicles) do groups[#groups + 1] = 1 end end
     local offset = 1
     for index, count in ipairs(groups) do
-        if count < 1 or offset + count - 1 > #config.vehicles then return nil, "原编组数据无效" end
+        if count < 1 or offset + count - 1 > #config.vehicles then return nil, t("invalid_consist") end
         local muName = config.muFileNames[index]
         local old
         if muName and muName ~= "" then
@@ -226,10 +227,10 @@ function native.snapshot(entity)
                 local id = api.res.multipleUnitRep.find(muName)
                 if id >= 0 then old = describe(id, true, muName); byMu[muName] = old; byKey[old.key] = old end
             end
-            if not old then return nil, "找不到原固定编组车型" end
+            if not old then return nil, t("missing_multiple_unit") end
         elseif count == 1 then old = lookupModel(config.vehicles[offset].part.modelId)
-        else return nil, "未命名组合不能安全逐节升级" end
-        if not old then return nil, "原车型缺少载具元数据" end
+        else return nil, t("unnamed_group") end
+        if not old then return nil, t("missing_metadata") end
         local unit = {index = index, offset = offset, count = count, old = old, parts = {}, muName = muName or "", manualCargos = {}}
         local active = {}
         for i = offset, offset + count - 1 do
@@ -242,7 +243,7 @@ function native.snapshot(entity)
             end
         end
         unit.reversed = groupReversed(unit)
-        if unit.reversed == nil then return nil, "原固定编组的部件或朝向与车型定义不一致，无法安全升级" end
+        if unit.reversed == nil then return nil, t("invalid_multiple_unit") end
         -- A loaded cargo without a resolved per-compartment config is still
         -- relevant. Normal mixed trains use their own current compartment IDs.
         if next(active) == nil then for cargo in pairs(result.loaded) do active[cargo] = true end end
@@ -251,7 +252,7 @@ function native.snapshot(entity)
         result.units[#result.units + 1] = unit
         offset = offset + count
     end
-    if offset ~= #config.vehicles + 1 then return nil, "原编组数量不一致" end
+    if offset ~= #config.vehicles + 1 then return nil, t("inconsistent_consist") end
     result.signature = core.signature(result)
     return result
 end
@@ -300,7 +301,7 @@ function native.build(snapshot, changes)
     local hasEngine = false
     for _, unit in ipairs(snapshot.units) do
         local target = changes[unit.index] and byKey[changes[unit.index]] or unit.old
-        if not target then return nil, "目标车型已不可用" end
+        if not target then return nil, t("target_unavailable") end
         hasEngine = hasEngine or target.hasEngine
         local replaced = target.key ~= unit.old.key
         if replaced then coverage[unit.index] = unit.manualCargos end
@@ -363,7 +364,7 @@ function native.build(snapshot, changes)
             end
         end
     end
-    if not hasEngine then return nil, "编组必须包含动力载具" end
+    if not hasEngine then return nil, t("engine_required") end
     local allocation, errorMessage = core.allocate(slots, snapshot.loaded, nil, coverage)
     if not allocation then return nil, errorMessage end
     for index, option in pairs(allocation) do
@@ -398,7 +399,7 @@ function native.missionError(quantities, actuallyBuy)
             debugPrint("[xiaom_vehicle_upgrade] purchase restriction check failed " .. detail)
             lastPurchaseError = detail
         end
-        return "购买限制检查暂时失败，请重新扫描（具体原因已记录到游戏日志）"
+        return t("purchase_check_retry")
     end
     lastPurchaseError = nil
     if type(value) == "string" and value ~= "" then return value end
@@ -412,10 +413,10 @@ end
 
 function native.cargoName(id) return cargoUtil.getCargoNameById(id) end
 function native.carrierName(carrier)
-    for _, entry in ipairs({{"ROAD", "道路"}, {"RAIL", "列车"}, {"TRAM", "电车"}, {"WATER", "船舶"}, {"AIR", "航空"}}) do
-        if carrier == api.type.enum.Carrier[entry[1]] then return entry[2] end
+    for _, entry in ipairs({{"ROAD", "road"}, {"RAIL", "rail"}, {"TRAM", "tram"}, {"WATER", "water"}, {"AIR", "air"}}) do
+        if carrier == api.type.enum.Carrier[entry[1]] then return t(entry[2]) end
     end
-    return "其他"
+    return t("other")
 end
 
 return native

@@ -1,5 +1,68 @@
 -- Read-only planning and owned native proposals. No world commands in this module.
 local core = {}
+-- Native Lua exceptions can be tables. tostring(table) discards the actual error.
+function core.errorText(value)
+    if type(value) == "string" then return value end
+    if type(toString) == "function" then
+        local ok, formatted = pcall(toString, value)
+        if ok and type(formatted) == "string" then return formatted end
+    end
+    local seen = {}
+    local function render(v, depth)
+        if type(v) ~= "table" then return tostring(v) end
+        if seen[v] then return "<cycle>" end
+        if depth > 4 then return "<nested error>" end
+        seen[v] = true
+        local fields, count = {}, 0
+        for key, item in pairs(v) do
+            fields[#fields + 1] = tostring(key) .. "=" .. render(item, depth + 1)
+            count = count + 1
+            if count >= 32 then break end
+        end
+        table.sort(fields)
+        return "{" .. table.concat(fields, ", ") .. "}"
+    end
+    return render(value, 0)
+end
+
+function core.protect(fn, ...)
+    local result = table.pack(xpcall(fn, function(err)
+        local message = core.errorText(err)
+        return core.errorText(debug.traceback(message, 2))
+    end, ...))
+    -- Native exceptions can bypass Lua's xpcall handler and arrive as tables.
+    -- Normalize at the boundary, not only inside the Lua error handler.
+    if not result[1] then result[2] = core.errorText(result[2]) end
+    return table.unpack(result, 1, result.n)
+end
+
+local function call(stage, fn, ...)
+    local result = table.pack(core.protect(fn, ...))
+    if not result[1] then error(stage .. ": " .. core.errorText(result[2]), 0) end
+    return table.unpack(result, 2, result.n)
+end
+
+function core.apiSummary()
+    local fields = {}
+    for _, name in ipairs({"SegmentAndEntity", "Proposal", "Context", "LayerConfig"}) do
+        local ok, constructor = pcall(function()
+            local record = api.type[name]
+            return record and record.new
+        end)
+        fields[#fields + 1] = "api.type." .. name .. ".new=" .. (ok and type(constructor) or "unavailable")
+    end
+    return table.concat(fields, "; ")
+end
+
+local function newRecord(name)
+    -- Type declares Proposal.SegmentAndEntity but exports its runtime factory
+    -- directly as api.type.SegmentAndEntity, not below api.type.Proposal.
+    local record = api.type[name]
+    if not record or type(record.new) ~= "function" then
+        error("required constructor api.type." .. name .. ".new unavailable; " .. core.apiSummary(), 0)
+    end
+    return record.new()
+end
 local supported = {
     ACTION_STREET_BUILDER_UPGRADER = "street",
     ACTION_TRACK_BUILDER_UPGRADER = "track",
@@ -19,14 +82,16 @@ end
 
 function core.component(entity, name)
     if type(entity) ~= "number" or entity < 0 or not api.engine.entityExists(entity) then return nil end
-    return api.engine.getComponent(entity, api.type.ComponentType[name])
+    local kind = api.type.ComponentType[name]
+    if not kind then return nil end
+    return api.engine.getComponent(entity, kind)
 end
 
 function core.template(name)
     if not name or name == "" then return nil end
     local id = api.res.streetTemplateRep.find(name)
     if not id or id < 0 then return nil end
-    return api.res.streetTemplateRep.get(id)
+    return api.res.streetTemplateRep.get(id), api.res.streetTemplateRep.getName(id)
 end
 
 local function hasTag(tags, wanted)
@@ -225,18 +290,45 @@ local function defaultDecorations(template)
     return result
 end
 
--- Returns a cloned component and the target template, or a classified reason.
+local function constructionLocked(entity, original)
+    local system = api.engine.system.streetConnectorSystem
+    local connector = system.getConstructionEntityForEdge(entity)
+    -- The owning construction may be a subconstruction, not a CONSTRUCTION
+    -- component on this exact entity. Any nonnegative owner locks this edge.
+    if connector and connector >= 0 then return true end
+    for _, node in ipairs({original.node0, original.node1}) do
+        local parent = system.getConstructionEntityForNode(node)
+        if parent and parent >= 0 then
+            if core.component(parent, "SUBCONSTRUCTION") then parent = system.getConstructionEntityForSubconstruction(parent) end
+            local construction = core.component(parent, "CONSTRUCTION")
+            for _, frozen in ipairs(construction and construction.frozenEdges or {}) do
+                if frozen == entity then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function ownedEdge(original)
+    -- Engine API results are read-only, including values reached through them.
+    -- Copy into a fresh proposal record before editing its BaseEdge value.
+    local segment = newRecord("SegmentAndEntity")
+    segment.comp = original
+    return segment.comp
+end
+
+-- Returns an owned editable component and the target template, or a reason.
 function core.transform(entity, intent)
     local original = core.component(entity, "BASE_EDGE")
     if not core.matches(original, intent.network) then return nil, "changed" end
-    local connector = api.engine.system.streetConnectorSystem.getConstructionEntityForEdge(entity)
-    if connector and connector >= 0 and core.component(connector, "CONSTRUCTION") then return nil, "locked" end
+    if constructionLocked(entity, original) then return nil, "locked" end
     local owner = core.component(entity, "PLAYER_OWNED")
     if owner and owner.player >= 0 and owner.player ~= api.engine.util.getPlayer() then return nil, "ownership" end
-    local source = core.template(original.roadTemplate)
+    local source, sourceName = core.template(original.roadTemplate)
     if not source then return nil, "resource" end
-    local edge = original:clone()
-    local targetName = original.roadTemplate
+    local edge = call("copy BaseEdge to owned segment entity=" .. tostring(entity)
+        .. " source=" .. tostring(sourceName), ownedEdge, original)
+    local targetName = sourceName
     local params, action = intent.params, intent.action
     local templateEdit = action == "ACTION_TRACK_BUILDER_UPGRADER" or action == "ACTION_STREET_BUILDER_UPGRADER"
     if templateEdit then targetName = intent.resource end
@@ -248,8 +340,11 @@ function core.transform(entity, intent)
         if intent.invert then targetName = source.catenaryRemove else targetName = source.catenaryAdd end
         if not targetName or targetName == "" then return nil, "resource" end
     end
-    local template = core.template(targetName)
+    local template, canonicalName = core.template(targetName)
     if not template or template.roadType ~= original.roadType then return nil, "resource" end
+    targetName = canonicalName
+    local styleId = api.res.streetStyleRep.find(template.streetStyle)
+    if not styleId or styleId < 0 then return nil, "resource" end
     local lanes = laneCopies(original.laneConfigs)
     if targetName ~= original.roadTemplate or templateEdit then
         local targetLanes = laneCopies(template.laneConfigs)
@@ -291,7 +386,7 @@ function core.transform(entity, intent)
         if action == "ACTION_STREET_BUILDER_UPGRADER" and intent.invert then
             for _, lane in ipairs(lanes) do if vehicleLane(lane) then lane.forward = not lane.forward end end
         end
-        edge.roadTemplate, edge.roadStyle = targetName, template.streetStyle
+        edge.roadTemplate, edge.roadStyle = targetName, api.res.streetStyleRep.getName(styleId)
     end
     local decorations = copyDecorations(original.edgeDecorations)
     if action == "ACTION_STREET_BUILDER_UPGRADER" and params.overrideLaneConfigs == 1 then
@@ -362,31 +457,94 @@ function core.context()
     return context
 end
 
-function core.snapshot(entity)
-    local edge = core.component(entity, "BASE_EDGE")
-    return edge and {entity = entity, revision = core.revision(entity), shape = core.geometry(edge)} or nil
+local modeNames = {"PERSON", "CARGO", "CAR", "BUS", "TRUCK", "TRAM", "ELECTRIC_TRAM", "TRAIN",
+    "ELECTRIC_TRAIN", "AIRCRAFT", "SHIP", "SMALL_AIRCRAFT", "SMALL_SHIP", "HELICOPTER", "TRAM_TRACK", "ELECTRIC_TRAM_TRACK"}
+local function edgeSignature(entity, edge)
+    local values = {}
+    local function add(v) values[#values + 1] = tostring(v) end
+    for _, key in ipairs({"node0", "node1", "type", "typeIndex", "roadType", "roadTemplate", "roadStyle", "roadDevelopmentLocked"}) do add(edge[key]) end
+    for _, key in ipairs({"position0", "position1", "tangent0", "tangent1"}) do
+        local v = edge[key]; add(v.x); add(v.y); add(v.z)
+    end
+    add(#edge.laneConfigs)
+    for _, lane in ipairs(edge.laneConfigs) do
+        for _, key in ipairs({"speed", "width", "height", "forward", "offset"}) do add(lane[key]) end
+        for _, name in ipairs(modeNames) do add(not not modes(lane)[api.type["enum"].TransportMode[name]]) end
+    end
+    add(#edge.edgeDecorations)
+    for _, item in ipairs(edge.edgeDecorations) do add(item[1]); add(item[2]) end
+    add(#edge.objects)
+    for _, item in ipairs(edge.objects) do add(item[1]); add(item[2]) end
+    local owner = core.component(entity, "PLAYER_OWNED")
+    add(owner and owner.player or -1)
+    add(api.engine.system.streetConnectorSystem.getConstructionEntityForEdge(entity))
+    return table.concat(values, "|")
 end
 
+function core.snapshot(entity)
+    local edge = core.component(entity, "BASE_EDGE")
+    return edge and {entity = entity, revision = core.revision(entity), shape = core.geometry(edge), signature = edgeSignature(entity, edge)} or nil
+end
+
+function core.snapshotMatches(snapshot)
+    local current = core.snapshot(snapshot.entity)
+    -- Revision[1] protects entity identity. Other counters can change while
+    -- traffic runs; compare all editable edge data instead of unrelated ECS data.
+    return current and current.revision[1] == snapshot.revision[1] and current.signature == snapshot.signature
+end
+
+function core.nodeSnapshot(entity, network)
+    local node = core.component(entity, "BASE_NODE")
+    if not node then return nil end
+    local neighbors = {}
+    for _, edge in ipairs(core.neighbors(entity, network) or {}) do neighbors[#neighbors + 1] = edge end
+    table.sort(neighbors)
+    return {entity = entity, revision = core.revision(entity), network = network,
+        signature = tostring(node.position.x) .. ":" .. tostring(node.position.y) .. ":" .. tostring(node.position.z) .. "|" .. table.concat(neighbors, ",")}
+end
+
+function core.nodeMatches(snapshot)
+    local current = core.nodeSnapshot(snapshot.entity, snapshot.network)
+    return current and current.revision[1] == snapshot.revision[1] and current.signature == snapshot.signature
+end
+
+local nativeFault
+local streetFields = {"addedNodes", "addedSegments", "removedSegments", "removedNodes", "edgeObjectsToAdd",
+    "new2oldEdgeObjects", "old2newEdgeObjects", "nodeConfigsToAdd", "nodeConfigsToRemove"}
+
 function core.build(entity, intent)
-    local edge, reason, templateName, owner = core.transform(entity, intent)
+    if nativeFault then return nil, "native", nativeFault end
+    local edge, reason, templateName, owner = call("transform", core.transform, entity, intent)
     if not edge then return nil, reason end
-    -- This helper supplies native edge-object mappings, node configuration,
-    -- parallel strips and target-template emissions. Keep those generated data.
-    local native = api.engine.util.proposal.replaceSegment(entity, templateName)
+    -- The target-template form of this helper triggered StreetTemplate::Get(-1)
+    -- in Build 40408. Refresh the existing valid segment only, then apply the
+    -- selected edit to an owned proposal, keeping native object/config mappings.
+    local ok, native = core.protect(api.engine.util.proposal.replaceSegment, entity)
+    if not ok then
+        nativeFault = "replaceSegment (source only), entity=" .. tostring(entity) .. " target=" .. tostring(templateName)
+            .. ": " .. core.errorText(native)
+        return nil, "native", nativeFault
+    end
     if not native then return nil, "proposal" end
-    local proposal = native:clone()
-    local street = proposal.proposal
+    local street = {}
+    for _, key in ipairs(streetFields) do street[key] = core.copy(native.proposal[key]) end
     local segments = street.addedSegments
     local shape = core.geometry(edge)
     local changed = false
-    for i, segment in ipairs(segments or {}) do
-        if core.sameGeometry(shape, segment.comp) then
+    for i, sourceSegment in ipairs(segments or {}) do
+        if core.sameGeometry(shape, sourceSegment.comp) then
             -- The helper may replace signals/stops and update their references.
             -- Preserve those references instead of restoring stale source IDs.
             local objects = {}
-            for _, object in ipairs(segment.comp.objects or {}) do objects[#objects + 1] = {object[1], object[2]} end
+            for _, object in ipairs(sourceSegment.comp.objects or {}) do objects[#objects + 1] = {object[1], object[2]} end
             edge.objects = objects
+            local segment = call("create replacement segment entity=" .. tostring(entity)
+                .. " target=" .. tostring(templateName), newRecord, "SegmentAndEntity")
+            segment.entity, segment.type = sourceSegment.entity, sourceSegment.type
             segment.comp = edge
+            segment.streetEdge = sourceSegment.streetEdge
+            segment.emissionEmitter = sourceSegment.emissionEmitter
+            segment.playerOwned = sourceSegment.playerOwned
             if owner ~= nil then
                 -- PlayerOwned is a record, not an exported api.type constructor.
                 segment.playerOwned = {player = owner}
@@ -397,22 +555,19 @@ function core.build(entity, intent)
         end
     end
     if not changed then return nil, "geometry" end
-    -- Nested userdata accessors may return copies; write the complete records.
+    -- Do not edit any records read through engine results or clone those locks.
+    -- Native constructors own writable values; write complete copied records.
     street.addedSegments = segments
+    local proposal = call("create owned Proposal entity=" .. tostring(entity), newRecord, "Proposal")
+    proposal.toRemove = core.copy(native.toRemove)
+    proposal.old2new = core.copy(native.old2new)
+    proposal.toAdd = core.copy(native.toAdd)
+    proposal.terrain = native.terrain
     proposal.proposal = street
     return proposal
 end
 
-function core.validate(proposal, entity)
-    local data = api.engine.util.proposal.makeProposalData(proposal, core.context())
-    local errors = data and data.errorState
-    if not errors or errors.critical or #(errors.messages or {}) > 0 then
-        return false, errors and table.concat(errors.messages or {}, "; ") or "", nil
-    end
-    local collisions = data.collisionInfo
-    if collisions and (#(collisions.buildingEntities or {}) > 0 or #(collisions.removableModules or {}) > 0) then
-        return false, "buildings", nil
-    end
+function core.checkProposal(proposal, entity)
     for _, removed in ipairs(proposal.toRemove or {}) do
         if core.component(removed, "CONSTRUCTION") or core.component(removed, "SUBCONSTRUCTION") then
             return false, "buildings", nil
@@ -436,19 +591,31 @@ function core.validate(proposal, entity)
         end
         if not kept then return false, "objects", nil end
     end
-    return true, nil, data.costs or 0
+    return true
 end
 
-function core.preflight(entity, intent)
-    local proposal, reason = core.build(entity, intent)
-    if not proposal then return nil, reason end
-    local valid, message, cost = core.validate(proposal, entity)
-    if not valid then
-        local classified = {buildings = true, geometry = true, objects = true, changed = true}
-        if classified[message] then return nil, message end
-        return nil, "rejected", message
+function core.prepare(entity, intent)
+    local proposal, reason, detail = call("build proposal", core.build, entity, intent)
+    if not proposal then return nil, reason, detail end
+    local valid, message = call("check proposal", core.checkProposal, proposal, entity)
+    if not valid then return nil, message end
+    return {snapshot = core.snapshot(entity)}, nil, nil, proposal
+end
+
+-- Called synchronously inside ProposalViewer.onCreateProposalData. No borrowed
+-- Proposal or ProposalData is retained; only scalar receipt fields leave here.
+function core.capturePreview(entity, data, generated)
+    local errors = data and data.errorState
+    if not errors or errors.critical or #(errors.messages or {}) > 0 then
+        return {valid = false, reason = "rejected", detail = errors and table.concat(errors.messages or {}, "; ") or ""}
     end
-    return {cost = cost, snapshot = core.snapshot(entity)}, nil, nil, proposal
+    local collisions = data.collisionInfo
+    if collisions and (#(collisions.buildingEntities or {}) > 0 or #(collisions.removableModules or {}) > 0) then
+        return {valid = false, reason = "buildings"}
+    end
+    if not generated then return {valid = false, reason = "proposal"} end
+    local valid, reason = core.checkProposal(generated, entity)
+    return {valid = valid, reason = reason, cost = data.costs or 0}
 end
 
 return core

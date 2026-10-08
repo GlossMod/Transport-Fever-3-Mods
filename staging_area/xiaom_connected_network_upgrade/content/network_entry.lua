@@ -47,7 +47,8 @@ function entry.install(_replacementApi)
         end, repository)
     end
     menu.xiaomConnectedNetworkInstalled = true
-    debugPrint("[xiaom_connected_network_upgrade] connected road/track upgrade tools installed, revision=2")
+    debugPrint("[xiaom_connected_network_upgrade] connected road/track upgrade tools installed, revision=5")
+    debugPrint("[xiaom_connected_network_upgrade] runtime API: " .. core.apiSummary())
 end
 
 return entry

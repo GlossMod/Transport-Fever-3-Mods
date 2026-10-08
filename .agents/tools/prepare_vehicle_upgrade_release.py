@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[2]
 MOD = ROOT / "staging_area" / "xiaom_vehicle_upgrade"
 OUT = ROOT / "output" / "publish" / "xiaom_vehicle_upgrade"
-REVISION = 10
+REVISION = 11
 TITLE = "全公司载具升级 | Fleet Upgrade"
 SUMMARY = (
     "同用途新车型推荐、可编辑预览与折旧报价，确认后批量升级。"
@@ -47,7 +47,7 @@ ZH = """中文说明
 更新 Mod 后请重启游戏。无需额外 Mod 依赖。
 
 语言与发布状态
-发布标题、摘要和描述提供中文与英文；当前游戏内升级界面为中文。
+发布标题、摘要、描述和游戏内升级界面支持中文与英文。界面自动读取游戏语言：简体、繁体及其他中文区域设置使用中文，英文使用英文，其他语言或无法读取语言时默认英文；当前中文文案为简体中文。车型、货物与玩家命名的线路沿用游戏提供的名称。
 当前为功能开发版，最新变更尚未完成游戏内验收，建议先在存档副本中使用。
 封面为 AI 生成的功能示意插画。
 """
@@ -72,33 +72,33 @@ Uses the game's native replacement command. Starts with lower net-cost vehicles,
 
 How to use
 1. Enable the mod and load a copy of your savegame.
-2. Open Statistics → Vehicles → the vehicle upgrade button.
+2. Open Statistics → Vehicles → Upgrade Vehicles.
 3. Review or edit group and individual targets; check capacity, power requirements and costs.
 4. Confirm the upgrade and review the per-vehicle results.
 Restart the game after updating the mod. No additional mod dependencies.
 
 Language and release status
-The listing title, summary and description are bilingual. The in-game upgrade interface is currently Chinese.
+The listing and in-game upgrade interface support Chinese and English. The interface follows the game language: Chinese locales use Chinese, English uses English, and all other languages or unavailable language settings default to English. Chinese UI text uses simplified Chinese. Model, cargo and player-named line names retain the names supplied by the game.
 This is a development release. Full in-game acceptance checks for the latest changes have not been completed; use a savegame copy first.
 Cover: AI-generated illustration of the mod's purpose.
 """
 
 DESCRIPTION = ZH.strip() + "\n\n" + EN.strip()
-CHANGELOG = """revision 10 — 发布资料整理 / Publication materials
+CHANGELOG = """revision 11 — 中英文自适应界面 / Adaptive Chinese and English UI
 
-中文：准备中英双语标题、摘要、描述和独立上传包，沿用 Fleet Upgrade 封面。运行代码沿用 revision 9：支出上涨时按最新报价继续升级，余额不足仍停止；保留可编辑预览、货物用途匹配、折旧报价和逐辆执行。
+中文：升级入口、预览、筛选、费用、进度、状态和错误提示实现中英双语。自动读取游戏语言，中文设置使用中文，其他语言默认英文。执行状态使用固定标识，避免显示语言影响队列。保持按最新报价升级及资金不足停止的行为。本版未执行自动化或实机测试。
 
-English: Adds a bilingual title, summary, description and a clean upload archive, retaining the Fleet Upgrade cover. Runtime code is unchanged from revision 9: upgrades continue at the current quote when prices rise, while insufficient funds still stop execution. Includes editable previews, cargo-aware matching, depreciation pricing and sequential replacement.
+English: Localizes the entry button, preview, filters, costs, progress, statuses and error messages into Chinese and English. Reads the game language automatically; Chinese locales use Chinese and other languages default to English. Queue statuses use stable identifiers independent of displayed text. Retains current-price upgrades and insufficient-funds checks. Automated and in-game tests have not been run for this revision.
 """
 
 PUBLISH = """# Fleet Upgrade 发布资料
 
 标题：全公司载具升级 | Fleet Upgrade
 游戏 Mod ID：xiaom_vehicle_upgrade
-修订版本：10
+修订版本：11
 建议标签：Script Mod
 作者：xiaom
-状态：资料和 ZIP 已准备，由你自行上传；尚未执行游戏发布校验或上传。
+状态：双语 UI 更新及 ZIP 已准备，由你自行测试和上传；本版尚未执行游戏发布校验或上传。
 
 ## 可直接复制的字段
 
@@ -108,17 +108,17 @@ PUBLISH = """# Fleet Upgrade 发布资料
 - CHANGELOG.txt：本版中英变更说明。
 - modinfo.json：与游戏 staging area 一致的发布元数据。
 - cover.png：现有 Fleet Upgrade 封面，1920×1080 PNG；使用 AI 示意插画并已在描述中注明。
-- xiaom_vehicle_upgrade_revision_10.zip：Mod 根文件、8 个内容文件、发布元数据、封面及公开说明；压缩包根目录直接包含 mod.json。
+- xiaom_vehicle_upgrade_revision_11.zip：Mod 根文件、9 个内容文件、发布元数据、封面及公开说明；压缩包根目录直接包含 mod.json。
 - development-records/：本地开发记录，不放入 ZIP。
 
 ## 通过游戏发布
 
 1. 保存当前进度并正常重启游戏，使游戏重新读取本次标题和元数据。
 2. 从主菜单打开 Mod Manager / Mod Hub，进入 My Mods / 我的 Mod，找到“全公司载具升级 | Fleet Upgrade”。
-3. 确认来源是 staging area、修订版本为 10、封面正确。核对发布账号，按界面要求自行登录。
+3. 确认来源是 staging area、修订版本为 11、封面正确。核对发布账号，按界面要求自行登录。
 4. 检查标题、摘要、完整描述和 Script Mod 标签；若界面没有自动读取这些字段，复制对应 TXT 文件内容。将 CHANGELOG.txt 用于变更说明。
 5. 执行游戏提供的校验，并根据实际错误处理。发布前阅读当前平台的要求；游戏发布校验与运行功能测试是不同事项。
-6. 首次发布对话框应表示创建新 mod.io 条目。确认你的可见性选择后点击 Upload / 上传。如果是更新已有条目，对话框必须表示更新；显示新建时先检查绑定，避免重复条目。
+6. 本地已存在条目绑定时，更新对话框必须表示更新该条目；显示新建时先检查绑定，避免重复创建。仅在没有现有条目且确实首次发布时创建新条目。确认你的可见性选择后点击 Upload / 上传。
 7. 等待明确上传结果，打开生成的真实 mod.io 页面，检查中英文案、封面、文件修订和公开状态。
 8. 保留游戏生成的 _metadata/mod.io_fileid.txt。之后更新同一条目时保留此文件，并递增 revision；它记录的是 mod.io 条目 ID。
 
@@ -127,15 +127,16 @@ PUBLISH = """# Fleet Upgrade 发布资料
 
 ## 从网页手动上传文件
 
-仅在平台提供对应文件上传流程时使用 xiaom_vehicle_upgrade_revision_10.zip；不要上传整个工作区或 development-records/。
+仅在平台提供对应文件上传流程时使用 xiaom_vehicle_upgrade_revision_11.zip；不要上传整个工作区或 development-records/。
 使用 TITLE.txt、SUMMARY.txt 和 DESCRIPTION.txt 填写发布介绍，并选择 cover.png 作为封面。
 首次上传后把真实条目 ID 与页面链接记下来；若以后改用游戏更新，也需正确恢复对应的本地条目绑定。
 
 ## 当前验证状态
 
-本次仅整理元数据、发布文案、公开说明和 ZIP；没有执行自动化测试、游戏运行验收或游戏发布校验。
-最新运行代码为 revision 9 的允许涨价行为。实际扣款、货物保留和存档重载仍以你的游戏内结果为准。
-发布介绍为中英双语，当前游戏内升级界面仍为中文。
+本次完成中英文 UI 本地化，并同步元数据、发布文案、公开说明和 ZIP；没有执行自动化测试、游戏运行验收或游戏发布校验。
+游戏 UI 自动读取游戏语言；中文区域设置使用简体中文文案，其余语言使用英文。车型、货物和玩家命名的线路沿用游戏提供的名称。
+请完全退出并重启游戏，在存档副本中分别使用中文、英文和一种其他游戏语言打开升级界面，查看按钮、展开卡片、下拉菜单、费用、禁用原因和处理反馈；其他语言应显示英文 Mod 文案。
+最新运行代码为 revision 11，保留允许涨价行为。实际扣款、货物保留和存档重载仍以你的游戏内结果为准。
 """
 
 
@@ -200,9 +201,10 @@ def main() -> None:
     binding_path = MOD / "_metadata" / "mod.io_fileid.txt"
     write_json(OUT / "release-status.json", {
         "status": "prepared_user_will_publish", "modId": definition["modId"],
-        "revision": REVISION, "runtime_code_revision": 9,
+        "revision": REVISION, "runtime_code_revision": 11,
         "prepared_at": datetime.now(ZoneInfo("Asia/Shanghai")).isoformat(timespec="seconds"),
-        "title": TITLE, "listing_languages": ["zh-CN", "en"], "in_game_ui_language": "zh-CN",
+        "title": TITLE, "listing_languages": ["zh-CN", "en"], "in_game_ui_languages": ["zh-CN", "en"],
+        "language_selection": "Chinese game locales use Chinese; all other locales default to English",
         "archive": str(archive), "staging_path": str(MOD), "published": False,
         "modio_id": binding_path.read_text(encoding="utf-8").strip() if binding_path.exists() else None,
         "modio_url": None, "game_publish_validation": "not_run", "runtime_tests": "not_run",
